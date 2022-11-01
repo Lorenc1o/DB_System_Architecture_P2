@@ -1,0 +1,4 @@
+# URL extension
+comment = 'URL datatype, equivalent to java.net.URL class'
+default_version = '0.0.1'
+relocatable = true
