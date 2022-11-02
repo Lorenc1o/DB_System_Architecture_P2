@@ -4,3 +4,10 @@
 CREATE FUNCTION url_test(text) RETURNS text
     AS '$libdir/url'
     LANGUAGE C IMMUTABLE STRICT;
+
+CREATE TYPE url AS (
+    protocol text,
+    host text,
+    port int,
+    file text
+);
