@@ -11,3 +11,8 @@ CREATE TYPE url AS (
     port int,
     file text
 );
+
+CREATE OR REPLACE FUNCTION url(text, text, int, text)
+RETURNS url
+AS '$libdir/url', 'url_constructor_all_fields'
+LANGUAGE C IMMUTABLE STRICT;

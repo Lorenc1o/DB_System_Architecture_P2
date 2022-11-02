@@ -22,3 +22,15 @@ url_test(PG_FUNCTION_ARGS)
     memcpy(VARDATA(new_text) + arg1_size, VARDATA_ANY(arg2), arg2_size);
     PG_RETURN_TEXT_P(new_text);
 }
+
+//TODO: This is not working. How to return multiple values? How to do a proper constructor?
+PG_FUNCTION_INFO_V1(url_constructor_all_fields);
+Datum
+url_constructor_all_fields(PG_FUNCTION_ARGS)
+{
+  text *protocol = PG_GETARG_TEXT_P(0);
+  text *host = PG_GETARG_TEXT_P(1);
+  int32 port = PG_GETARG_INT32(2);
+  text *file = PG_GETARG_TEXT_P(3);
+  PG_RETURN_TEXT_P(protocol);
+}
