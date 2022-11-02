@@ -9,17 +9,16 @@ PG_FUNCTION_INFO_V1(url_test);
 Datum
 url_test(PG_FUNCTION_ARGS)
 {
-    char* arg = palloc(strlen(PG_GETARG_CSTRING(0)));
-    strcpy(arg, PG_GETARG_CSTRING(0));
-    char *url = "http://www.google.com";
+    
+    text  *arg1 = cstring_to_text("http://www.google.com/");
+    text  *arg2 = PG_GETARG_TEXT_PP(0);
+    int32 arg1_size = VARSIZE_ANY_EXHDR(arg1);
+    int32 arg2_size = VARSIZE_ANY_EXHDR(arg2);
+    int32 new_text_size = arg1_size + arg2_size + VARHDRSZ;
+    text *new_text = (text *) palloc(new_text_size);
 
-
-    elog(NOTICE, "arg len [%d]'%s'\n", strlen(arg), arg);
-    elog(NOTICE, "url len [%d]'%s'\n", strlen(url), url);
-
-    //sprintf(number, "%d", arg);
-    //strcat(url, "/");
-    //strcat(url, arg);
-
-    PG_RETURN_TEXT_P(cstring_to_text(url));
+    SET_VARSIZE(new_text, new_text_size);
+    memcpy(VARDATA(new_text), VARDATA_ANY(arg1), arg1_size);
+    memcpy(VARDATA(new_text) + arg1_size, VARDATA_ANY(arg2), arg2_size);
+    PG_RETURN_TEXT_P(new_text);
 }
