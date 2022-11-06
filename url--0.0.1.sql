@@ -12,7 +12,7 @@ CREATE TYPE url AS (
     file text
 );
 
-CREATE OR REPLACE FUNCTION url(text, text, int, text)
+CREATE OR REPLACE FUNCTION url(protocol text, host text, port int, file text)
 RETURNS url
 AS '$libdir/url', 'url_constructor_all_fields'
 LANGUAGE C IMMUTABLE STRICT;
