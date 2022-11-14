@@ -6,12 +6,12 @@ CREATE FUNCTION url_test(text) RETURNS text
     LANGUAGE C IMMUTABLE STRICT;
 
 CREATE FUNCTION url_in(cstring)
-    RETURN url
+    RETURNS pg_url
     AS '$libdir/url', 'url_in'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION url_out(url)
-    RETURN cstring
+CREATE FUNCTION url_out(pg_url)
+    RETURNS cstring
     AS '$libdir/url', 'url_out'
     LANGUAGE C IMMUTABLE STRICT;
 
@@ -25,7 +25,7 @@ CREATE FUNCTION url_out(url)
 --     AS '$libdir/url', 'url_send'
 --     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE TYPE url (
+CREATE TYPE pg_url (
     INPUT = url_in,
     OUTPUT = url_out
     -- RECEIVE = url_recv,

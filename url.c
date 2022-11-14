@@ -6,28 +6,53 @@
 
 PG_MODULE_MAGIC;
 
-typedef struct{
-  int32 length;
+typedef struct pg_url{
+  char vl_len_[4];
   char *protocol;
   char *host;
   int   port;
   char *file;
-} Url;
+} pg_url;
 
-static inline Url *parse_url_from_str(const char *str){
+static pg_url* parse_url_from_fields(char *protocol, char *host, int port, char *file){
+  int32 prot_size = strlen(protocol);
+
+  int32 host_size = strlen(host);
+
+  int32 file_size = strlen(file);
+
+  elog(INFO, "%d %d %d", prot_size, host_size, file_size);
+
+  int32 url_size = sizeof(pg_url);
+  pg_url *u = (pg_url *)palloc(url_size);
+  SET_VARSIZE(u, url_size);
+
+  u->protocol = palloc(prot_size);
+  memcpy(VARDATA(u->protocol), VARDATA_ANY(protocol), strlen(protocol));
+
+  u->host = palloc(host_size);
+  memcpy(VARDATA(u->host), VARDATA_ANY(host), strlen(host));
+
+  u->port = port;
+
+  u->file = palloc(file_size);
+  memcpy(VARDATA(u->file), VARDATA_ANY(file), strlen(file));
+
+  return u;
+}
+
+static pg_url* parse_url_from_str(char *str){
   char *protocol = "protocol"; //len 8
   char *host = "host"; // len 4
   int port = 80; // len 4
   char *file = "file"; // len 4
-  Url *u = (Url *)palloc(VARHDRSZ + 8 + 4 + 4 + 4);
-
+  elog(INFO, "b");
+  pg_url *u = (pg_url *)palloc(VARHDRSZ + 8 + 4 + 4 + 4);
+  elog(INFO, "c");
   SET_VARSIZE(u, VARHDRSZ + 8 + 4 + 4 + 4);
-
-  memcpy(u->protocol, protocol, 8);
-  memcpy(u->host, host, 4);
-  u->port = port;
-  memcpy(u->file, file, 4);
-  PG_RETURN_POINTER(u);
+  elog(INFO, "d");
+  u = parse_url_from_fields(protocol, host, port, file);
+  return u;
 }
 
 PG_FUNCTION_INFO_V1(url_in);
@@ -35,7 +60,8 @@ Datum
 url_in(PG_FUNCTION_ARGS)
 {
   char *str = PG_GETARG_CSTRING(0);
-  Url *url = parse_url_from_str(str);
+  elog(INFO, "a");
+  pg_url *url = parse_url_from_str(str);
   elog(INFO, "url_in: %s", str);
   PG_RETURN_POINTER(url);
 }
@@ -44,19 +70,19 @@ PG_FUNCTION_INFO_V1(url_out);
 Datum
 url_out(PG_FUNCTION_ARGS)
 {
-  Url *url = (Url *) PG_GETARG_POINTER(0);
+  pg_url *url = (pg_url *) PG_GETARG_POINTER(0);
   char *str = palloc(1024);
-
+  elog(INFO, "%s://%s:%d%s", url->protocol, url->host, url->port, url->file);
   sprintf(str, "%s://%s:%d%s", url->protocol, url->host, url->port, url->file);
   PG_RETURN_CSTRING(str);
 }
-
+/*
 PG_FUNCTION_INFO_V1(url_rcv);
 Datum
 url_rcv(PG_FUNCTION_ARGS)
 {
   StringInfo buf = (StringInfo) PG_GETARG_POINTER(0);
-  Url *url = palloc(sizeof(Url));
+  pg_url *url = palloc(sizeof(pg_url));
   url->protocol = pstrdup(buf->data);
   url->host = pstrdup(buf->data + strlen(url->protocol) + 1);
   url->port = atoi(buf->data + strlen(url->protocol) + strlen(url->host) + 2);
@@ -68,7 +94,7 @@ PG_FUNCTION_INFO_V1(url_send);
 Datum
 url_send(PG_FUNCTION_ARGS)
 {
-  Url *url = (Url *) PG_GETARG_POINTER(0);
+  pg_url *url = (pg_url *) PG_GETARG_POINTER(0);
   StringInfoData buf;
   pq_begintypsend(&buf);
   pq_sendbytes(&buf, url->protocol, strlen(url->protocol) + 1);
@@ -76,7 +102,7 @@ url_send(PG_FUNCTION_ARGS)
   pq_sendbytes(&buf, url->port, 4 + 1);
   pq_sendbytes(&buf, url->file, strlen(url->file) + 1);
   PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
-}
+}*/
 
 PG_FUNCTION_INFO_V1(url_test);
 Datum
@@ -89,10 +115,22 @@ url_test(PG_FUNCTION_ARGS)
   int32 new_text_size = arg1_size + arg2_size + VARHDRSZ;
   text *new_text = (text *) palloc(new_text_size);
 
+  elog(INFO, "arg1_size: %d", arg1_size);
+  elog(INFO, "arg2_size: %d", arg2_size);
+  elog(INFO, "new_text_size: %d", new_text_size);
+
   SET_VARSIZE(new_text, new_text_size);
   memcpy(VARDATA(new_text), VARDATA_ANY(arg1), arg1_size);
   memcpy(VARDATA(new_text) + arg1_size, VARDATA_ANY(arg2), arg2_size);
   PG_RETURN_TEXT_P(new_text);
+}
+/*
+PG_FUNCTION_INFO_V1(url_constructor);
+Datum
+url_constructor(PG_FUNCTION_ARGS)
+{
+  pg_url *url = parse_url_from_str("http://www.google.com/");
+  PG_RETURN_POINTER(url);
 }
 
 //TODO: This is not working. How to return multiple values?
@@ -128,3 +166,4 @@ url_constructor_all_fields(PG_FUNCTION_ARGS)
 
   PG_RETURN_DATUM(result);
 }
+*/
