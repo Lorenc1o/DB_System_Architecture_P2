@@ -25,18 +25,21 @@ static pg_url* parse_url_from_fields(char *protocol, char *host, int port, char 
 
   int32 url_size = sizeof(pg_url);
   pg_url *u = (pg_url *)palloc(url_size);
-  SET_VARSIZE(u, url_size);
+  SET_VARSIZE(u, url_size + prot_size + host_size + file_size + VARHDRSZ);
 
   u->protocol = palloc(prot_size);
-  memcpy(VARDATA(u->protocol), VARDATA_ANY(protocol), strlen(protocol));
+  memcpy(u->protocol, protocol, prot_size);
 
   u->host = palloc(host_size);
-  memcpy(VARDATA(u->host), VARDATA_ANY(host), strlen(host));
+  memcpy(u->host, host, host_size);
+  elog(INFO, "%s", u->host);
 
   u->port = port;
+  elog(INFO, "%d", u->port);
 
   u->file = palloc(file_size);
-  memcpy(VARDATA(u->file), VARDATA_ANY(file), strlen(file));
+  memcpy(u->file, file, file_size);
+  elog(INFO, "%s", u->file);
 
   return u;
 }
@@ -47,11 +50,8 @@ static pg_url* parse_url_from_str(char *str){
   int port = 80; // len 4
   char *file = "file"; // len 4
   elog(INFO, "b");
-  pg_url *u = (pg_url *)palloc(VARHDRSZ + 8 + 4 + 4 + 4);
-  elog(INFO, "c");
-  SET_VARSIZE(u, VARHDRSZ + 8 + 4 + 4 + 4);
-  elog(INFO, "d");
-  u = parse_url_from_fields(protocol, host, port, file);
+  pg_url *u = parse_url_from_fields(protocol, host, port, file);
+  elog(INFO, "%s %s %d %s", u->protocol, u->host, u->port, u->file);
   return u;
 }
 
@@ -62,7 +62,7 @@ url_in(PG_FUNCTION_ARGS)
   char *str = PG_GETARG_CSTRING(0);
   elog(INFO, "a");
   pg_url *url = parse_url_from_str(str);
-  elog(INFO, "url_in: %s", str);
+  elog(INFO, "%s %s %d %s", url->protocol, url->host, url->port, url->file);
   PG_RETURN_POINTER(url);
 }
 
@@ -72,6 +72,7 @@ url_out(PG_FUNCTION_ARGS)
 {
   pg_url *url = (pg_url *) PG_GETARG_POINTER(0);
   char *str = palloc(1024);
+  elog(INFO, "%s %s %d %s", url->protocol, url->host, url->port, url->file);
   elog(INFO, "%s://%s:%d%s", url->protocol, url->host, url->port, url->file);
   sprintf(str, "%s://%s:%d%s", url->protocol, url->host, url->port, url->file);
   PG_RETURN_CSTRING(str);
