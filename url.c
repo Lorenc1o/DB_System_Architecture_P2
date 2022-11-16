@@ -3,6 +3,7 @@
 #include "utils/builtins.h"
 #include <strings.h>
 #include "funcapi.h"
+//#include "uriparser/Uri.h"
 
 PG_MODULE_MAGIC;
 
@@ -53,10 +54,10 @@ static pg_url* parse_url_from_fields(char *protocol, char *host, int port, char 
 }
 
 static pg_url* parse_url_from_str(char *str){
-  char *protocol = "protocol";
-  char *host = "host";
+  char *protocol = "http";
+  char *host = "www.google.com";
   int port = 80;
-  char *file = "file";
+  char *file = "index";
   pg_url *u = parse_url_from_fields(protocol, host, port, file);
   return u;
 }
@@ -145,46 +146,93 @@ url_test(PG_FUNCTION_ARGS)
   memcpy(VARDATA(new_text) + arg1_size, VARDATA_ANY(arg2), arg2_size);
   PG_RETURN_TEXT_P(new_text);
 }
-/*
-PG_FUNCTION_INFO_V1(url_constructor);
+
+PG_FUNCTION_INFO_V1(get_host);
 Datum
-url_constructor(PG_FUNCTION_ARGS)
+get_host(PG_FUNCTION_ARGS)
 {
-  pg_url *url = parse_url_from_str("http://www.google.com/");
-  PG_RETURN_POINTER(url);
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  int32 buf_size = VARSIZE_4B(url_buf);
+  int32 full_size = &(url_buf->vl_dat);
+
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
+
+  // Get the offset of the host
+  int prot_size = url->protocol_len;
+
+  // Get the host length
+  int host_size = url->host_len;
+
+  // Allocate enough memory for the string
+  char *str = palloc(host_size);
+
+  // Get the host
+  char *host = url->data + prot_size;
+  str = psprintf("%s", host);
+  PG_RETURN_CSTRING(str);
 }
 
-//TODO: This is not working. How to return multiple values?
-PG_FUNCTION_INFO_V1(url_constructor_all_fields);
+PG_FUNCTION_INFO_V1(get_port);
 Datum
-url_constructor_all_fields(PG_FUNCTION_ARGS)
+get_port(PG_FUNCTION_ARGS)
 {
-  text *protocol = PG_GETARG_TEXT_P(0);
-  text *host = PG_GETARG_TEXT_P(1);
-  int32 port = PG_GETARG_INT32(2);
-  text *file = PG_GETARG_TEXT_P(3);
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  int32 buf_size = VARSIZE_4B(url_buf);
+  int32 full_size = &(url_buf->vl_dat);
 
-  TupleDesc tupdesc;
-  HeapTuple tuple;
-  Datum result;
-  Datum values[4];
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
 
-  values[0] = PointerGetDatum(protocol);
-  values[1] = PointerGetDatum(host);
-  values[2] = Int32GetDatum(port);
-  values[3] = PointerGetDatum(file);
-
-  tupdesc = CreateTemplateTupleDesc(4);
-
-  TupleDescInitEntry(tupdesc, (AttrNumber) 1, "protocol", TEXTOID, -1, 0);
-  TupleDescInitEntry(tupdesc, (AttrNumber) 2, "host", TEXTOID, -1, 0);
-  TupleDescInitEntry(tupdesc, (AttrNumber) 3, "port", INT4OID, -1, 0);
-  TupleDescInitEntry(tupdesc, (AttrNumber) 4, "file", TEXTOID, -1, 0);
-
-  tuple = heap_form_tuple(tupdesc, values, NULL);
-
-  result = HeapTupleGetDatum(tuple);
-
-  PG_RETURN_DATUM(result);
+  // Get the sizes
+  int port = url->port;
+  PG_RETURN_INT32(port);
 }
-*/
+
+PG_FUNCTION_INFO_V1(get_protocol);
+Datum
+get_protocol(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  int32 buf_size = VARSIZE_4B(url_buf);
+  int32 full_size = &(url_buf->vl_dat);
+
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
+
+  // Get the protocol length
+  int prot_size = url->protocol_len;
+
+  // Allocate enough memory for the string
+  char *str = palloc(prot_size);
+
+  // Get the protocol
+  char *protocol = url->data;
+  str = psprintf("%s", protocol);
+  PG_RETURN_CSTRING(str);
+}
+
+PG_FUNCTION_INFO_V1(get_file);
+Datum
+get_file(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  int32 buf_size = VARSIZE_4B(url_buf);
+  int32 full_size = &(url_buf->vl_dat);
+
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
+
+  // Get the sizes
+  int prot_size = url->protocol_len;
+  int host_size = url->host_len;
+  int file_size = url->file_len;
+
+  // Allocate enough memory for the string
+  char *str = palloc(file_size);
+
+  // Get the file
+  char *file = url->data + prot_size + host_size;
+  str = psprintf("%s", file);
+  PG_RETURN_CSTRING(str);
+}

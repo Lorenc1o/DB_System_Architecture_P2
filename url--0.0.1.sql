@@ -32,7 +32,23 @@ CREATE TYPE pg_url (
     -- SEND = url_send
 );
 
---CREATE OR REPLACE FUNCTION url(protocol text, host text, port int, file text)
---RETURNS url
---AS '$libdir/url', 'url_constructor_all_fields'
---LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION get_host(pg_url)
+RETURNS cstring
+AS '$libdir/url', 'get_host'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION get_port(pg_url)
+RETURNS int
+AS '$libdir/url', 'get_port'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION get_protocol(pg_url)
+RETURNS cstring
+AS '$libdir/url', 'get_protocol'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION get_file(pg_url)
+RETURNS cstring
+AS '$libdir/url', 'get_file'
+LANGUAGE C IMMUTABLE STRICT;
+
