@@ -9,26 +9,17 @@ PG_MODULE_MAGIC;
 typedef struct pg_url{
   char vl_len_[4];
   int full_len;
-  //char *full; // add all lengths to be able to retrieve all fields
   int protocol_len;
-  //char *protocol;
   int host_len;
-  //char *host;
   int port;
-  //int   port;
   int file_len;
-  //char *file;
   char data[1];
 } pg_url;
 
 static pg_url* parse_url_from_fields(char *protocol, char *host, int port, char *file){
   int32 prot_size = strlen(protocol);
-
   int32 host_size = strlen(host);
-
   int32 file_size = strlen(file);
-
-  //int32 full_size = prot_size + host_size + file_size + 10;
 
   elog(INFO, "%d %d %d", prot_size, host_size, file_size);
 
@@ -36,54 +27,46 @@ static pg_url* parse_url_from_fields(char *protocol, char *host, int port, char 
   pg_url *u = (pg_url *)palloc(VARHDRSZ + 5*4 + prot_size + host_size + file_size + 3);
   SET_VARSIZE(u, VARHDRSZ + 5*4 + prot_size + host_size + file_size + 3);
 
+  // set the protocol
   int offset = 0;
   memset(u->data + offset, 0, prot_size +1);
   u->protocol_len = prot_size + 1;
-  //u->protocol = palloc(prot_size+1);
   memcpy(u->data, protocol, prot_size+1);
-  //elog(INFO, "log1 %s", u->protocol);
   offset += prot_size + 1;
 
+  // set the host
   memset(u->data + offset, 0, host_size + 1);
   u->host_len = host_size + 1;
   memcpy(u->data + offset, host, host_size+1);
   offset += host_size + 1;
-  //elog(INFO, "%s", u->host);
-  //elog(INFO, "log2 %s %s", u->protocol, u->host);
 
+  // set the port
   u->port = port;
-  //elog(INFO, "%d", u->port);
-  
-  //elog(INFO, "log3 %s %s %d", u->protocol, u->host, u->port);
 
+  // set the file
   memset(u->data + offset, 0, file_size + 1);
   u->file_len = file_size + 1;
   memcpy(u->data + offset, file, file_size+1);
   elog(INFO, "LOG12 %s", u->data);
-  //elog(INFO, "log4 %s %s %d %s", u->protocol, u->host, u->port, u->file);
 
   return u;
 }
 
 static pg_url* parse_url_from_str(char *str){
-  char *protocol = "protocol"; //len 8
-  char *host = "host"; // len 4
-  int port = 80; // len 4
-  char *file = "file"; // len 4
+  char *protocol = "protocol";
+  char *host = "host";
+  int port = 80;
+  char *file = "file";
   pg_url *u = parse_url_from_fields(protocol, host, port, file);
-  //elog(INFO, "log 5 %s %s %d %s", u->vl_len_, u->host, u->port, u->file);
-  //elog(INFO, "log 6 %s", u->full);
   return u;
 }
 
 PG_FUNCTION_INFO_V1(url_in);
-Datum // check how to correctly return a pointer 
+Datum
 url_in(PG_FUNCTION_ARGS)
 {
   char *str = PG_GETARG_CSTRING(0);
   pg_url *url = parse_url_from_str(str);
-  //elog(INFO, "log7 %s %s %d %s", url->protocol, url->host, url->port, url->file);
-  //elog(INFO, "log8 %s", url->full);
   PG_RETURN_POINTER(url);
 }
 
@@ -94,17 +77,20 @@ url_out(PG_FUNCTION_ARGS)
   struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
   int32 buf_size = VARSIZE_4B(url_buf);
   int32 full_size = &(url_buf->vl_dat);
-  
+
   pg_url *url = (pg_url *)(&(url_buf->vl_dat));
   url = (pg_url *) pg_detoast_datum(url_buf);
+
+  // Get the sizes
   int prot_size = url->protocol_len;
   int host_size = url->host_len;
   int port = url->port;
   int file_size = url->file_len;
 
+  // Allocate enough memory for the string
   char *str = palloc(prot_size + host_size + file_size + 10);
-  //elog(INFO, "log9 %s %s %d %s", url->protocol, url->host, url->port, url->file);
-  //elog(INFO, "log10 %s", url->full);
+
+  // Get the different parts of the url
   char *protocol = url->data;
   char *host = url->data + prot_size;
   char *file = url->data + prot_size + host_size;
