@@ -9,7 +9,6 @@ PG_MODULE_MAGIC;
 
 typedef struct pg_url{
   char vl_len_[4];
-  int full_len;
   int protocol_len;
   int host_len;
   int port;
@@ -22,9 +21,6 @@ static pg_url* parse_url_from_fields(char *protocol, char *host, int port, char 
   int32 host_size = strlen(host);
   int32 file_size = strlen(file);
 
-  elog(INFO, "%d %d %d", prot_size, host_size, file_size);
-
-  int32 url_size = sizeof(pg_url);
   pg_url *u = (pg_url *)palloc(VARHDRSZ + 5*4 + prot_size + host_size + file_size + 3);
   SET_VARSIZE(u, VARHDRSZ + 5*4 + prot_size + host_size + file_size + 3);
 
@@ -48,18 +44,27 @@ static pg_url* parse_url_from_fields(char *protocol, char *host, int port, char 
   memset(u->data + offset, 0, file_size + 1);
   u->file_len = file_size + 1;
   memcpy(u->data + offset, file, file_size+1);
-  elog(INFO, "LOG12 %s", u->data);
 
   return u;
 }
 
 static pg_url* parse_url_from_str(char *str){
   char *protocol = "http";
-  char *host = "www.google.com";
+  char *host = palloc(strlen(str));
+  strcpy(host, str);
   int port = 80;
   char *file = "index";
   pg_url *u = parse_url_from_fields(protocol, host, port, file);
   return u;
+}
+
+static char* internal_to_string(pg_url *u){
+  int prot_size = u->protocol_len;
+  int host_size = u->host_len;
+  int file_size = u->file_len;
+  char *str = palloc(prot_size + host_size + file_size + 10);
+  sprintf(str, "%s://%s:%d/%s", u->data, u->data + u->protocol_len, u->port, u->data + u->protocol_len + u->host_len);
+  return str;
 }
 
 PG_FUNCTION_INFO_V1(url_in);
@@ -76,8 +81,6 @@ Datum
 url_out(PG_FUNCTION_ARGS)
 {
   struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
-  int32 buf_size = VARSIZE_4B(url_buf);
-  int32 full_size = &(url_buf->vl_dat);
 
   pg_url *url = (pg_url *)(&(url_buf->vl_dat));
   url = (pg_url *) pg_detoast_datum(url_buf);
@@ -126,35 +129,11 @@ url_send(PG_FUNCTION_ARGS)
   PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
 }*/
 
-PG_FUNCTION_INFO_V1(url_test);
-Datum
-url_test(PG_FUNCTION_ARGS)
-{   
-  text  *arg1 = cstring_to_text("http://www.google.com/");
-  text  *arg2 = PG_GETARG_TEXT_PP(0);
-  int32 arg1_size = VARSIZE_ANY_EXHDR(arg1);
-  int32 arg2_size = VARSIZE_ANY_EXHDR(arg2);
-  int32 new_text_size = arg1_size + arg2_size + VARHDRSZ;
-  text *new_text = (text *) palloc(new_text_size);
-
-  elog(INFO, "arg1_size: %d", arg1_size);
-  elog(INFO, "arg2_size: %d", arg2_size);
-  elog(INFO, "new_text_size: %d", new_text_size);
-
-  SET_VARSIZE(new_text, new_text_size);
-  memcpy(VARDATA(new_text), VARDATA_ANY(arg1), arg1_size);
-  memcpy(VARDATA(new_text) + arg1_size, VARDATA_ANY(arg2), arg2_size);
-  PG_RETURN_TEXT_P(new_text);
-}
-
 PG_FUNCTION_INFO_V1(get_host);
 Datum
 get_host(PG_FUNCTION_ARGS)
 {
   struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
-  int32 buf_size = VARSIZE_4B(url_buf);
-  int32 full_size = &(url_buf->vl_dat);
-
   pg_url *url = (pg_url *)(&(url_buf->vl_dat));
   url = (pg_url *) pg_detoast_datum(url_buf);
 
@@ -178,9 +157,6 @@ Datum
 get_port(PG_FUNCTION_ARGS)
 {
   struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
-  int32 buf_size = VARSIZE_4B(url_buf);
-  int32 full_size = &(url_buf->vl_dat);
-
   pg_url *url = (pg_url *)(&(url_buf->vl_dat));
   url = (pg_url *) pg_detoast_datum(url_buf);
 
@@ -194,9 +170,6 @@ Datum
 get_protocol(PG_FUNCTION_ARGS)
 {
   struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
-  int32 buf_size = VARSIZE_4B(url_buf);
-  int32 full_size = &(url_buf->vl_dat);
-
   pg_url *url = (pg_url *)(&(url_buf->vl_dat));
   url = (pg_url *) pg_detoast_datum(url_buf);
 
@@ -217,9 +190,6 @@ Datum
 get_file(PG_FUNCTION_ARGS)
 {
   struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
-  int32 buf_size = VARSIZE_4B(url_buf);
-  int32 full_size = &(url_buf->vl_dat);
-
   pg_url *url = (pg_url *)(&(url_buf->vl_dat));
   url = (pg_url *) pg_detoast_datum(url_buf);
 
@@ -235,4 +205,89 @@ get_file(PG_FUNCTION_ARGS)
   char *file = url->data + prot_size + host_size;
   str = psprintf("%s", file);
   PG_RETURN_CSTRING(str);
+}
+
+PG_FUNCTION_INFO_V1(toString);
+Datum
+toString(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
+
+  // Get the sizes
+  int prot_size = url->protocol_len;
+  int host_size = url->host_len;
+  int port = url->port;
+  int file_size = url->file_len;
+
+  // Allocate enough memory for the string
+  char *str = palloc(prot_size + host_size + file_size + 10);
+
+  // Get the different parts of the url
+  char *protocol = url->data;
+  char *host = url->data + prot_size;
+  char *file = url->data + prot_size + host_size;
+  str = psprintf("%s://%s:%d/%s", protocol, host, port, file);
+  PG_RETURN_CSTRING(str);
+}
+
+PG_FUNCTION_INFO_V1(equals);
+Datum
+equals(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  bool result = (url1->port == url2->port) // Check the port
+    && (url1->file_len == url2->file_len) // Check the file length
+    && (url1->host_len == url2->host_len) // Check the host length
+    && (url1->protocol_len == url2->protocol_len);
+  
+  if(result){
+    // Get the strings
+    char *str1 = internal_to_string(url1);
+    char *str2 = internal_to_string(url2);
+
+    // Compare the strings
+    result = strcmp(str1, str2) == 0;
+    PG_RETURN_BOOL(result);
+  }
+  // If the lengths are not the same, the urls are not equal
+  PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(not_equals);
+Datum
+not_equals(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  bool result = (url1->port != url2->port) // Check the port
+    || (url1->file_len != url2->file_len) // Check the file length
+    || (url1->host_len != url2->host_len) // Check the host length
+    || (url1->protocol_len != url2->protocol_len);
+  
+  if(!result){
+    // Get the strings
+    char *str1 = internal_to_string(url1);
+    char *str2 = internal_to_string(url2);
+
+    // Compare the strings
+    result = strcmp(str1, str2) != 0;
+    PG_RETURN_BOOL(result);
+  }
+  // If the lengths are not the same, the urls are not equal
+  PG_RETURN_BOOL(result);
 }

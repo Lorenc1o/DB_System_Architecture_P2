@@ -12,3 +12,13 @@ select id, get_host(u) from test_url;
 select id, get_port(u) from test_url;
 select id, get_protocol(u) from test_url;
 select id, get_file(u) from test_url;
+
+drop table if exists test_equals;
+create table test_equals (id int, u1 pg_url, u2 pg_url);
+insert into test_equals values (1, 'test', 'test');
+insert into test_equals values (2, 'test', 'test2');
+select * from test_equals;
+select * from test_equals where pg_equals(u1, u2);
+select * from test_equals where not pg_equals(u1, u2);
+select * from test_equals where u1 = u2;
+select * from test_equals where u1 <> u2;
