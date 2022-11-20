@@ -3,7 +3,7 @@
 #include "utils/builtins.h"
 #include <strings.h>
 #include "funcapi.h"
-//#include "uriparser/Uri.h"
+#include <regex.h>
 
 PG_MODULE_MAGIC;
 
@@ -16,7 +16,7 @@ typedef struct pg_url{
   char data[1];
 } pg_url;
 
-static pg_url* parse_url_from_fields(char *protocol, char *host, int port, char *file){
+static pg_url* create_url_from_fields(char *protocol, char *host, int port, char *file){
   int32 prot_size = strlen(protocol);
   int32 host_size = strlen(host);
   int32 file_size = strlen(file);
@@ -48,13 +48,86 @@ static pg_url* parse_url_from_fields(char *protocol, char *host, int port, char 
   return u;
 }
 
-static pg_url* parse_url_from_str(char *str){
+static pg_url* parse_url(char *url){
+  regex_t reegex;
+  // Creation of regEx
+	int value = regcomp( &reegex, "(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9]+))?", REG_EXTENDED);
+
+  regmatch_t pmatch[9];
+  value = regexec( &reegex, url, 9, pmatch, 0);
+
+  // Extract the protocol
+  char *protocol;
+  if (pmatch[2].rm_so == -1)
+  {
+    protocol = malloc(1);
+    memcpy(protocol, "", 1);
+  } else{
+    char *protocol_start = url + pmatch[2].rm_so;
+    size_t protocol_length = pmatch[2].rm_eo - pmatch[2].rm_so;
+    protocol = malloc(protocol_length + 1);
+    memset(protocol, 0, protocol_length + 1);
+    memcpy(protocol, protocol_start, protocol_length);
+  }
+
+  // Do the same with the host
+  char *host;
+  if (pmatch[3].rm_so == -1)
+  {
+    host = malloc(1);
+    memcpy(host, "", 1);
+  } else{
+    char *host_start = url + pmatch[3].rm_so;
+    size_t host_length = pmatch[3].rm_eo - pmatch[3].rm_so;
+    host = malloc(host_length + 1);
+    memset(host, 0, host_length + 1);
+    memcpy(host, host_start, host_length);
+  }
+
+  // Do the same with protocol (but this is integer)
+  int port;
+  if (pmatch[6].rm_so == -1)
+  {
+    port = 0;
+  } else{
+    char *port_start = url + pmatch[6].rm_so;
+    size_t port_length = pmatch[6].rm_eo - pmatch[6].rm_so;
+    char *port_str = malloc(port_length + 1);
+    memset(port_str, 0, port_length + 1);
+    memcpy(port_str, port_start, port_length);
+    port = atoi(port_str);
+  }
+
+  // Do the same with the file
+  char *file;
+  if (pmatch[8].rm_so == -1)
+  {
+    file = malloc(1);
+    memcpy(file, "", 1);
+  } else{
+    char *file_start = url + pmatch[8].rm_so;
+    size_t file_length = pmatch[8].rm_eo - pmatch[8].rm_so;
+    file = malloc(file_length + 1);
+    memset(file, 0, file_length + 1);
+    memcpy(file, file_start, file_length);
+  }
+
+  // Create the url
+  pg_url *u = create_url_from_fields(protocol, host, port, file);
+  
+  // Free the memory allocated to the pattern
+  regfree(&reegex);
+
+  return u;
+}
+
+static pg_url* create_url_from_str(char *str){
   char *protocol = "http";
   char *host = palloc(strlen(str));
   strcpy(host, str);
   int port = 80;
   char *file = "index";
-  pg_url *u = parse_url_from_fields(protocol, host, port, file);
+  pg_url *u = create_url_from_fields(protocol, host, port, file);
   return u;
 }
 
@@ -72,7 +145,7 @@ Datum
 url_in(PG_FUNCTION_ARGS)
 {
   char *str = PG_GETARG_CSTRING(0);
-  pg_url *url = parse_url_from_str(str);
+  pg_url *url = parse_url(str);
   PG_RETURN_POINTER(url);
 }
 
