@@ -47,7 +47,15 @@ static pg_url* create_url_from_fields(char *protocol, char *host, int port, char
 
   return u;
 }
-
+/*
+  * parse a url into its components
+  * returns a pg_url
+  * 
+  * @param url the url to parse
+  * @return a pg_url
+  *
+  * TODO treat special cases
+*/
 static pg_url* parse_url(char *url){
   regex_t reegex;
   // Creation of regEx
@@ -114,7 +122,7 @@ static pg_url* parse_url(char *url){
 
   // Create the url
   pg_url *u = create_url_from_fields(protocol, host, port, file);
-  
+
   // Free the memory allocated to the pattern
   regfree(&reegex);
 
