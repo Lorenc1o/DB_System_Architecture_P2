@@ -69,7 +69,7 @@ static pg_url* create_url_from_fields(char *protocol, char *host, int port, char
 static pg_url* parse_url(char *url){
   regex_t reegex;
   // Creation of regEx
-	int value = regcomp( &reegex, "(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9]+))?", REG_EXTENDED);
+	int value = regcomp( &reegex, "(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=]+))?", REG_EXTENDED);
 
   regmatch_t pmatch[9];
   value = regexec( &reegex, url, 9, pmatch, 0);
