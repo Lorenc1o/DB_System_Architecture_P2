@@ -29,6 +29,21 @@ CREATE TYPE pg_url (
 );
 COMMENT ON TYPE pg_url IS 'URL type implementation for PostgreSQL';
 
+CREATE FUNCTION pg_url(cstring, cstring, int, cstring)
+RETURNS pg_url
+AS '$libdir/url', 'url_constructor_from_fields'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION pg_url(cstring, cstring, cstring)
+RETURNS pg_url
+AS '$libdir/url', 'url_constructor_from_fields_default_port'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION pg_url(cstring)
+RETURNS pg_url
+AS '$libdir/url', 'url_constructor_from_string'
+LANGUAGE C IMMUTABLE STRICT;
+
 CREATE FUNCTION get_host(pg_url)
 RETURNS cstring
 AS '$libdir/url', 'get_host'

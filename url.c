@@ -23,7 +23,7 @@ static int default_port(char *protocol){
   if (strcasecmp(protocol, "sftp") == 0) return 22;
   if (strcasecmp(protocol, "ssh") == 0) return 22;
   if (strcasecmp(protocol, "git") == 0) return 9418;
-  return 0;
+  return -1;
 }
 
 static pg_url* create_url_from_fields(char *protocol, char *host, int port, char *file){
@@ -219,6 +219,38 @@ url_send(PG_FUNCTION_ARGS)
   pq_sendbytes(&buf, url->file, strlen(url->file) + 1);
   PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
 }*/
+
+PG_FUNCTION_INFO_V1(url_constructor_from_fields);
+Datum
+url_constructor_from_fields(PG_FUNCTION_ARGS)
+{
+  char *protocol = PG_GETARG_CSTRING(0);
+  char *host = PG_GETARG_CSTRING(1);
+  int port = PG_GETARG_INT32(2);
+  char *file = PG_GETARG_CSTRING(3);
+  pg_url *url = create_url_from_fields(protocol, host, port, file);
+  PG_RETURN_POINTER(url);
+}
+
+PG_FUNCTION_INFO_V1(url_constructor_from_fields_default_port);
+Datum
+url_constructor_from_fields_default_port(PG_FUNCTION_ARGS)
+{
+  char *protocol = PG_GETARG_CSTRING(0);
+  char *host = PG_GETARG_CSTRING(1);
+  char *file = PG_GETARG_CSTRING(2);
+  pg_url *url = create_url_from_fields(protocol, host, default_port(protocol), file);
+  PG_RETURN_POINTER(url);
+}
+
+PG_FUNCTION_INFO_V1(url_constructor_from_string);
+Datum
+url_constructor_from_string(PG_FUNCTION_ARGS)
+{
+  char *str = PG_GETARG_CSTRING(0);
+  pg_url *url = create_url_from_str(str);
+  PG_RETURN_POINTER(url);
+}
 
 PG_FUNCTION_INFO_V1(get_host);
 Datum
