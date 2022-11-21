@@ -32,3 +32,5 @@ select * from test_equals where u1 < u2;
 select * from test_equals where u1 <= u2;
 select * from test_equals where u1 > u2;
 select * from test_equals where u1 >= u2;
+
+create index test_url_u on test_url using btree (u);
