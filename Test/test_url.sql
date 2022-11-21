@@ -6,7 +6,9 @@ create extension url;
 drop table if exists test_url;
 create table test_url (id int, u pg_url);
 insert into test_url values (1, 'http://www.test.com:80/file');
-insert into test_url values (1, 'test.es');
+insert into test_url values (2, 'test.es');
+insert into test_url values (3, 'https://www.test.com');
+insert into test_url values (4, 'ftp://www.test.com/file?param1=1&param2=2');
 
 select * from test_url;
 select id, get_host(u) from test_url;
