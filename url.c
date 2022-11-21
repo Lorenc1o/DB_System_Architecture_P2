@@ -16,6 +16,16 @@ typedef struct pg_url{
   char data[1];
 } pg_url;
 
+static int default_port(char *protocol){
+  if (strcasecmp(protocol, "http") == 0) return 80;
+  if (strcasecmp(protocol, "https") == 0) return 443;
+  if (strcasecmp(protocol, "ftp") == 0) return 21;
+  if (strcasecmp(protocol, "sftp") == 0) return 22;
+  if (strcasecmp(protocol, "ssh") == 0) return 22;
+  if (strcasecmp(protocol, "git") == 0) return 9418;
+  return 0;
+}
+
 static pg_url* create_url_from_fields(char *protocol, char *host, int port, char *file){
   int32 prot_size = strlen(protocol);
   int32 host_size = strlen(host);
@@ -68,8 +78,8 @@ static pg_url* parse_url(char *url){
   char *protocol;
   if (pmatch[2].rm_so == -1)
   {
-    protocol = malloc(1);
-    memcpy(protocol, "", 1);
+    protocol = malloc(5);
+    memcpy(protocol, "http", 5);
   } else{
     char *protocol_start = url + pmatch[2].rm_so;
     size_t protocol_length = pmatch[2].rm_eo - pmatch[2].rm_so;
@@ -96,7 +106,7 @@ static pg_url* parse_url(char *url){
   int port;
   if (pmatch[6].rm_so == -1)
   {
-    port = 0;
+    port = default_port(protocol);
   } else{
     char *port_start = url + pmatch[6].rm_so;
     size_t port_length = pmatch[6].rm_eo - pmatch[6].rm_so;
