@@ -414,3 +414,87 @@ not_equals(PG_FUNCTION_ARGS)
   // If the lengths are not the same, the urls are not equal
   PG_RETURN_BOOL(result);
 }
+
+PG_FUNCTION_INFO_V1(less_than);
+Datum
+less_than(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  // Get the strings
+  char *str1 = internal_to_string(url1);
+  char *str2 = internal_to_string(url2);
+
+  // Compare the strings
+  bool result = strcmp(str1, str2) < 0;
+  PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(less_than_or_equal);
+Datum
+less_than_or_equal(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  // Get the strings
+  char *str1 = internal_to_string(url1);
+  char *str2 = internal_to_string(url2);
+
+  // Compare the strings
+  bool result = strcmp(str1, str2) <= 0;
+  PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(greater_than);
+Datum
+greater_than(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  // Get the strings
+  char *str1 = internal_to_string(url1);
+  char *str2 = internal_to_string(url2);
+
+  // Compare the strings
+  bool result = strcmp(str1, str2) > 0;
+  PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(greater_than_or_equal);
+Datum
+greater_than_or_equal(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  // Get the strings
+  char *str1 = internal_to_string(url1);
+  char *str2 = internal_to_string(url2);
+
+  // Compare the strings
+  bool result = strcmp(str1, str2) >= 0;
+  PG_RETURN_BOOL(result);
+}

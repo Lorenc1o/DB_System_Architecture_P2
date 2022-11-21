@@ -79,6 +79,26 @@ RETURNS boolean
 AS '$libdir/url', 'not_equals'
 LANGUAGE C IMMUTABLE STRICT;
 
+CREATE FUNCTION pg_less_than(pg_url, pg_url)
+RETURNS boolean
+AS '$libdir/url', 'less_than'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION pg_less_than_or_equal(pg_url, pg_url)
+RETURNS boolean
+AS '$libdir/url', 'less_than_or_equal'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION pg_greater_than(pg_url, pg_url)
+RETURNS boolean
+AS '$libdir/url', 'greater_than'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION pg_greater_than_or_equal(pg_url, pg_url)
+RETURNS boolean
+AS '$libdir/url', 'greater_than_or_equal'
+LANGUAGE C IMMUTABLE STRICT;
+
 CREATE OPERATOR = (
 	LEFTARG = pg_url,
 	RIGHTARG = pg_url,
@@ -100,3 +120,43 @@ CREATE OPERATOR <> (
     JOIN = neqjoinsel
 );
 COMMENT ON OPERATOR <>(pg_url, pg_url) IS 'not equals?';
+
+CREATE OPERATOR < (
+    LEFTARG = pg_url,
+    RIGHTARG = pg_url,
+    PROCEDURE = pg_less_than,
+    COMMUTATOR = '>',
+    NEGATOR = '>=',
+    RESTRICT = scalarltsel,
+    JOIN = scalarltjoinsel
+);
+
+CREATE OPERATOR <= (
+    LEFTARG = pg_url,
+    RIGHTARG = pg_url,
+    PROCEDURE = pg_less_than_or_equal,
+    COMMUTATOR = '>=',
+    NEGATOR = '>',
+    RESTRICT = scalargtsel,
+    JOIN = scalargtjoinsel
+);
+
+CREATE OPERATOR > (
+    LEFTARG = pg_url,
+    RIGHTARG = pg_url,
+    PROCEDURE = pg_greater_than,
+    COMMUTATOR = '<',
+    NEGATOR = '<=',
+    RESTRICT = scalarltsel,
+    JOIN = scalarltjoinsel
+);
+
+CREATE OPERATOR >= (
+    LEFTARG = pg_url,
+    RIGHTARG = pg_url,
+    PROCEDURE = pg_greater_than_or_equal,
+    COMMUTATOR = '<=',
+    NEGATOR = '<',
+    RESTRICT = scalargtsel,
+    JOIN = scalargtjoinsel
+);
