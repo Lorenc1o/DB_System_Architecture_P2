@@ -1,4 +1,4 @@
-/ Import libraries needed
+// Import libraries needed
 #include "postgres.h"
 #include "fmgr.h"
 #include "utils/builtins.h"
