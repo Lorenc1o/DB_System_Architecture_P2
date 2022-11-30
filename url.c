@@ -45,7 +45,8 @@ static pg_url* create_url_from_fields(char *protocol, char *host, int port, char
   SET_VARSIZE(u, VARHDRSZ + 5*4 + prot_size + host_size + file_size + 3);
 
   // set the protocol
-  int offset = 0; //offset will tell us where in the memory are we storing each value. Starting with position 0.
+  int offset;
+  offset = 0; //offset will tell us where in the memory are we storing each value. Starting with position 0.
   memset(u->data + offset, 0, prot_size +1); // Empty the space that will be overwritten with our protocol
   u->protocol_len = prot_size + 1; // Get protocol size
   memcpy(u->data, protocol, prot_size+1); // Write at the beginig of our url u the protocol
@@ -103,12 +104,12 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
   char *protocol;
   if (pmatch[2].rm_so == -1) //If there is no match for protocol, we assume its 'http'
   {
-    protocol = malloc(5);
+    protocol = palloc(5);
     memcpy(protocol, "http", 5);
   } else{ // Else, we add it to the url
     char *protocol_start = url + pmatch[2].rm_so;
     size_t protocol_length = pmatch[2].rm_eo - pmatch[2].rm_so;
-    protocol = malloc(protocol_length + 1);
+    protocol = palloc(protocol_length + 1);
 	  
     memset(protocol, 0, protocol_length + 1); //Empty the memory in which our protocol will be located 
     memcpy(protocol, protocol_start, protocol_length); // copies into 'protocol' the protocol received according to its size
@@ -208,18 +209,17 @@ Datum url_out(PG_FUNCTION_ARGS) //Elaborate function url_out :
   PG_RETURN_CSTRING(str);
 }
 /*
-PG_FUNCTION_INFO_V1(url_rcv);
+PG_FUNCTION_INFO_V1(url_recv);
 Datum
 url_rcv(PG_FUNCTION_ARGS)
 {
   StringInfo buf = (StringInfo) PG_GETARG_POINTER(0);
-  pg_url *url = palloc(sizeof(pg_url));
-  url->protocol = pstrdup(buf->data);
-  url->host = pstrdup(buf->data + strlen(url->protocol) + 1);
-  url->port = atoi(buf->data + strlen(url->protocol) + strlen(url->host) + 2);
-  url->file = pstrdup(buf->data + strlen(url->protocol) + strlen(url->host) + strlen(url->file) + 4);
+  pg_url *url = (pg_url *) palloc(VARHDRSZ + buf->len);
+  SET_VARSIZE(url, VARHDRSZ + buf->len);
+  memcpy(url->data, buf->data, buf->len);
   PG_RETURN_POINTER(url);
 }
+
 PG_FUNCTION_INFO_V1(url_send);
 Datum
 url_send(PG_FUNCTION_ARGS)
@@ -227,10 +227,11 @@ url_send(PG_FUNCTION_ARGS)
   pg_url *url = (pg_url *) PG_GETARG_POINTER(0);
   StringInfoData buf;
   pq_begintypsend(&buf);
-  pq_sendbytes(&buf, url->protocol, strlen(url->protocol) + 1);
-  pq_sendbytes(&buf, url->host, strlen(url->host) + 1);
-  pq_sendbytes(&buf, url->port, 4 + 1);
-  pq_sendbytes(&buf, url->file, strlen(url->file) + 1);
+  pq_sendint(&buf, url->protocol_len, 4);
+  pq_sendint(&buf, url->host_len, 4);
+  pq_sendint(&buf, url->port, 4);
+  pq_sendint(&buf, url->file_len, 4);
+  pq_sendbytes(&buf, url->data, url->protocol_len + url->host_len + url->file_len);
   PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
 }*/
 
@@ -272,6 +273,17 @@ url_constructor_from_string(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(url);
 }
 
+// Constructor URL(varchar spec) but receives text instead of cstring
+PG_FUNCTION_INFO_V1(url_constructor_from_text);
+Datum
+url_constructor_from_text(PG_FUNCTION_ARGS)
+{
+  text *str = PG_GETARG_TEXT_P(0);
+  char *cstr = text_to_cstring(str);
+  pg_url *url = parse_url(cstr);
+  PG_RETURN_POINTER(url);
+}
+
 // TODO:  Constructor URL(URL context, varchar spec)
 
 
@@ -279,6 +291,16 @@ url_constructor_from_string(PG_FUNCTION_ARGS)
 
 // TODO: varchar getAuthority() : Gets the authority part of this URL.
 // TODO: int getDefaultPort(): Gets the default port number of the protocol associated with this URL.
+PG_FUNCTION_INFO_V1(get_default_port);
+Datum
+get_default_port(PG_FUNCTION_ARGS)
+{
+  pg_url *url = (pg_url *) PG_GETARG_POINTER(0);
+  // Get protocol and default port associated to it
+  char *protocol = url->data;
+  int port = default_port(protocol);
+  PG_RETURN_INT32(port);
+}
 
 //Gets the file name of this URL.
 PG_FUNCTION_INFO_V1(get_file);
@@ -394,6 +416,32 @@ toString(PG_FUNCTION_ARGS)
   char *file = url->data + prot_size + host_size;
   str = psprintf("%s://%s:%d/%s", protocol, host, port, file);
   PG_RETURN_CSTRING(str);
+}
+
+// Constructs a text representation of the url
+PG_FUNCTION_INFO_V1(to_text);
+Datum
+to_text(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
+
+  // Get the sizes
+  int prot_size = url->protocol_len;
+  int host_size = url->host_len;
+  int port = url->port;
+  int file_size = url->file_len;
+
+  // Allocate enough memory for the string
+  char *str = palloc(prot_size + host_size + file_size + 10);
+
+  // Get the different parts of the url
+  char *protocol = url->data;
+  char *host = url->data + prot_size;
+  char *file = url->data + prot_size + host_size;
+  str = psprintf("%s://%s:%d/%s", protocol, host, port, file);
+  PG_RETURN_TEXT_P(cstring_to_text(str));
 }
 
 

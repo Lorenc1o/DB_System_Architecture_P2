@@ -11,21 +11,21 @@ CREATE OR REPLACE FUNCTION url_out(pg_url)
     AS '$libdir/url', 'url_out'
     LANGUAGE C IMMUTABLE STRICT;
 
--- CREATE OR REPLACE FUNCTION url_recv(internal)
---     RETURN url
---     AS '$libdir/url', 'url_recv'
---     LANGUAGE C IMMUTABLE STRICT;
+--CREATE OR REPLACE FUNCTION url_recv(internal)
+--    RETURNS pg_url
+--    AS '$libdir/url', 'url_recv'
+--    LANGUAGE C IMMUTABLE STRICT;
 
--- CREATE OR REPLACE FUNCTION url_send(url)
---     RETURN bytea
---     AS '$libdir/url', 'url_send'
---     LANGUAGE C IMMUTABLE STRICT;
+--CREATE OR REPLACE FUNCTION url_send(url)
+--    RETURNS bytea
+--    AS '$libdir/url', 'url_send'
+--    LANGUAGE C IMMUTABLE STRICT;
 
 CREATE TYPE pg_url (
     INPUT = url_in,
     OUTPUT = url_out
-    -- RECEIVE = url_recv,
-    -- SEND = url_send
+    --RECEIVE = url_recv,
+    --SEND = url_send
 );
 COMMENT ON TYPE pg_url IS 'URL type implementation for PostgreSQL';
 
@@ -44,6 +44,11 @@ RETURNS pg_url
 AS '$libdir/url', 'url_constructor_from_string'
 LANGUAGE C IMMUTABLE STRICT;
 
+CREATE OR REPLACE FUNCTION pg_url(text)
+RETURNS pg_url
+AS '$libdir/url', 'url_constructor_from_text'
+LANGUAGE C IMMUTABLE STRICT;
+
 CREATE OR REPLACE FUNCTION get_host(pg_url)
 RETURNS cstring
 AS '$libdir/url', 'get_host'
@@ -59,6 +64,11 @@ RETURNS cstring
 AS '$libdir/url', 'get_protocol'
 LANGUAGE C IMMUTABLE STRICT;
 
+CREATE OR REPLACE FUNCTION get_default_port(pg_url)
+RETURNS int
+AS '$libdir/url', 'get_default_port'
+LANGUAGE C IMMUTABLE STRICT;
+
 CREATE OR REPLACE FUNCTION get_file(pg_url)
 RETURNS cstring
 AS '$libdir/url', 'get_file'
@@ -68,6 +78,14 @@ CREATE OR REPLACE FUNCTION toString(pg_url)
 RETURNS cstring
 AS '$libdir/url', 'toString'
 LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION text(pg_url)
+RETURNS text
+AS '$libdir/url', 'to_text'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE CAST (text as pg_url) WITH FUNCTION pg_url(text) AS IMPLICIT;
+CREATE CAST (pg_url as text) WITH FUNCTION text(pg_url);
 
 CREATE OR REPLACE FUNCTION pg_equals(pg_url, pg_url) 
 RETURNS boolean
