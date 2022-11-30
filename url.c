@@ -519,6 +519,90 @@ equals(PG_FUNCTION_ARGS)
   PG_RETURN_BOOL(result);
 }
 
+// Check if the hosts of two urls are equal
+PG_FUNCTION_INFO_V1(same_host);
+Datum
+same_host(PG_FUNCTION_ARGS)
+{
+  //Get value for url1
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  //Get value for url2
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  //Compare components
+  bool result = (url1->host_len == url2->host_len);
+  
+  // If the components match, compare their host part
+  if(result){
+    char *host1 = url1->data + url1->protocol_len;
+    char *host2 = url2->data + url2->protocol_len;
+    result = strcmp(host1, host2) == 0; //if strings are equal
+  }
+  // If the lengths are not the same, the urls are not equal
+  PG_RETURN_BOOL(result);
+}
+
+// Check if the files of two urls are equal
+PG_FUNCTION_INFO_V1(same_file);
+Datum
+same_file(PG_FUNCTION_ARGS)
+{
+  //Get value for url1
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  //Get value for url2
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  //Compare components
+  bool result = (url1->file_len == url2->file_len);
+  
+  // If the components match, compare their file part
+  if(result){
+    char *file1 = url1->data + url1->protocol_len + url1->host_len;
+    char *file2 = url2->data + url2->protocol_len + url2->host_len;
+    result = strcmp(file1, file2) == 0; //if strings are equal
+  }
+  // If the lengths are not the same, the urls are not equal
+  PG_RETURN_BOOL(result);
+}
+
+// Check if the hosts of two urls are different
+PG_FUNCTION_INFO_V1(different_host);
+Datum
+different_host(PG_FUNCTION_ARGS)
+{
+  //Get value for url1
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  //Get value for url2
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  //Compare components
+  bool result = (url1->host_len == url2->host_len);
+  
+  // If the components match, compare their host part
+  if(result){
+    char *host1 = url1->data + url1->protocol_len;
+    char *host2 = url2->data + url2->protocol_len;
+    result = strcmp(host1, host2) != 0; //if strings are different
+  }
+  // If the lengths are not the same, the urls are not equal
+  PG_RETURN_BOOL(result);
+}
+
 
 // Not Equals function for Indexing
 PG_FUNCTION_INFO_V1(not_equals);
