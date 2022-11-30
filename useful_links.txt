@@ -1,0 +1,6 @@
+
+Lots of details on C functions for PostgreSQL
+https://www.postgresql.org/docs/current/xfunc-c.html
+
+URL standard info:
+https://url.spec.whatwg.org/
