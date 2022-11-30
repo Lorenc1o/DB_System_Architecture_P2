@@ -27,6 +27,8 @@ select * from test_equals;
 select * from test_equals where pg_equals(u1, u2);
 select * from test_equals where not pg_equals(u1, u2);
 select * from test_equals where u1 = u2;
+select * from test_equals where same_host(u1,u2);
+select * from test_equals where same_file(u1,u2);
 select * from test_equals where u1 <> u2;
 select * from test_equals where u1 < u2;
 select * from test_equals where u1 <= u2;
