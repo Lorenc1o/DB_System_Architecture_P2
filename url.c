@@ -165,18 +165,6 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
   return u;
 }
 
-
-
-static pg_url* create_url_from_str(char *str){ 
-  char *protocol = "http";
-  char *host = palloc(strlen(str));
-  strcpy(host, str);
-  int port = 80;
-  char *file = "index";
-  pg_url *u = create_url_from_fields(protocol, host, port, file);
-  return u;
-}
-
 // For a given URL *u, return its string equivalent
 static char* internal_to_string(pg_url *u){
   int prot_size = u->protocol_len;
@@ -280,7 +268,7 @@ Datum
 url_constructor_from_string(PG_FUNCTION_ARGS)
 {
   char *str = PG_GETARG_CSTRING(0);
-  pg_url *url = create_url_from_str(str);
+  pg_url *url = parse_url(str);
   PG_RETURN_POINTER(url);
 }
 
