@@ -5,6 +5,7 @@
 #include <strings.h>
 #include "funcapi.h"
 #include <regex.h>
+#include<stdio.h>
  
 PG_MODULE_MAGIC; //“magic block”  to ensure that a dynamically loaded object file is not loaded into an incompatible server, required by PostgreSQL 
 
@@ -82,7 +83,9 @@ static pg_url* create_url_from_fields(char *protocol, char *host, int port, char
 static pg_url* parse_url(char *url){ //Receive the url and split into its components
   regex_t reegex;
   // Creation of regEx
-	int value = regcomp( &reegex, "(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=]+))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+	int value = regcomp( &reegex, "(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=\\-]+))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+	
+	
 
   regmatch_t pmatch[9];
     /*
@@ -289,8 +292,38 @@ url_constructor_from_text(PG_FUNCTION_ARGS)
 
 // ---- Methods
 
-// TODO: varchar getAuthority() : Gets the authority part of this URL.
-// TODO: int getDefaultPort(): Gets the default port number of the protocol associated with this URL.
+// varchar getAuthority() : Gets the authority part of this URL.
+PG_FUNCTION_INFO_V1(getAuthority);
+Datum
+getAuthority(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
+  
+  // Get the  of the host
+  int prot_size = url->protocol_len;
+
+  // Get the host length
+  int host_size = url->host_len;
+
+  // Allocate enough memory for the string
+  char *str = palloc(host_size+4+1);
+
+  
+  // Get the host and the port
+  char *host = url->data + prot_size;
+  int port = url->port;
+  
+  //Build the Authority
+  str = psprintf("%s:%d", host, port);
+  
+  
+  PG_RETURN_CSTRING(str);
+}
+
+
+// int getDefaultPort(): Gets the default port number of the protocol associated with this URL.
 PG_FUNCTION_INFO_V1(get_default_port);
 Datum
 get_default_port(PG_FUNCTION_ARGS)
@@ -350,7 +383,33 @@ get_host(PG_FUNCTION_ARGS)
   PG_RETURN_CSTRING(str);
 }
 
-//TODO: varchar getPath() Gets the path part of this URL.
+//varchar getPath() Gets the path part of this URL.
+
+PG_FUNCTION_INFO_V1(getPath);
+Datum
+getPath(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
+
+  // Get the sizes
+  int prot_size = url->protocol_len;
+  int host_size = url->host_len;
+  int file_size = url->file_len;
+
+  // Allocate enough memory for the string
+  char *str = palloc(file_size);
+
+  // Get the file
+  char *file = url->data + prot_size + host_size;
+  char *ptr = strtok(file, "?");
+  
+  //str = psprintf("%s", ptr);
+  PG_RETURN_CSTRING(file);
+}
+
+
 
 //Gets the port number of this URL.
 PG_FUNCTION_INFO_V1(get_port);
@@ -388,6 +447,52 @@ get_protocol(PG_FUNCTION_ARGS)
 }
 
 // TODO: varchar getQuery() Gets the query part of this URL.
+PG_FUNCTION_INFO_V1(getQuery);
+Datum
+getQuery(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
+
+  regex_t reegex;
+  
+  int value = regcomp( &reegex, "([^/?#]*)(\\?([^#]*))?(#(.*))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+  regmatch_t pmatch[5];
+	    /*
+	  5 expected matches from url:
+		  pmatch[0] =before query
+		  pmatch[1] =  ?query
+		  pmatch[2] = query
+		  pmatch[3] = host
+		  pmatch[4] =fragment
+
+	  */
+	  
+   value = regexec( &reegex, url, 5, pmatch, 0);
+	  
+	  
+	  // Extract the query
+   char *query;
+
+  if (pmatch[2].rm_so == -1)
+  {
+    query = malloc(1);
+    memcpy(query, "", 1);
+  } else{
+    char *query_start = pmatch[2].rm_so;
+    size_t query_length = pmatch[2].rm_eo - pmatch[3].rm_so;
+    query = malloc(query_length + 1);
+    memset(query, 0, query_length + 1);
+    memcpy(query, query_start, query_length);
+  }
+
+  char *str = psprintf("%s", query);
+  regfree(&reegex);
+  
+  PG_RETURN_CSTRING(str);
+}
+
 // TODO: String getRef() Gets the anchor (also known as the "reference") of this URL.
 // TODO: String getUserInfo() Gets the userInfo part of this URL.
 

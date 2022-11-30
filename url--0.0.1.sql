@@ -49,9 +49,25 @@ RETURNS pg_url
 AS '$libdir/url', 'url_constructor_from_text'
 LANGUAGE C IMMUTABLE STRICT;
 
+CREATE OR REPLACE FUNCTION getAuthority(pg_url)
+RETURNS cstring
+AS '$libdir/url', 'getAuthority'
+LANGUAGE C IMMUTABLE STRICT;
+
+
 CREATE OR REPLACE FUNCTION get_host(pg_url)
 RETURNS cstring
 AS '$libdir/url', 'get_host'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION getPath(pg_url)
+RETURNS cstring
+AS '$libdir/url', 'getPath'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION getQuery(pg_url)
+RETURNS cstring
+AS '$libdir/url', 'getQuery'
 LANGUAGE C IMMUTABLE STRICT;
 
 CREATE OR REPLACE FUNCTION get_port(pg_url)
