@@ -418,34 +418,6 @@ toString(PG_FUNCTION_ARGS)
   PG_RETURN_CSTRING(str);
 }
 
-// Constructs a text representation of the url
-PG_FUNCTION_INFO_V1(to_text);
-Datum
-to_text(PG_FUNCTION_ARGS)
-{
-  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
-  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
-  url = (pg_url *) pg_detoast_datum(url_buf);
-
-  // Get the sizes
-  int prot_size = url->protocol_len;
-  int host_size = url->host_len;
-  int port = url->port;
-  int file_size = url->file_len;
-
-  // Allocate enough memory for the string
-  char *str = palloc(prot_size + host_size + file_size + 10);
-
-  // Get the different parts of the url
-  char *protocol = url->data;
-  char *host = url->data + prot_size;
-  char *file = url->data + prot_size + host_size;
-  str = psprintf("%s://%s:%d/%s", protocol, host, port, file);
-  PG_RETURN_TEXT_P(cstring_to_text(str));
-}
-
-
-
 // ---- URLs functions supported by INDEXING
 
 // TODO: boolean sameFile(URL url1, URL url2) : Compares two URLs, excluding the fragment component.This operation must be index-supported.

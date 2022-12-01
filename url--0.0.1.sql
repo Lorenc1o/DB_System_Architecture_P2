@@ -79,13 +79,8 @@ RETURNS cstring
 AS '$libdir/url', 'toString'
 LANGUAGE C IMMUTABLE STRICT;
 
-CREATE OR REPLACE FUNCTION text(pg_url)
-RETURNS text
-AS '$libdir/url', 'to_text'
-LANGUAGE C IMMUTABLE STRICT;
-
-CREATE CAST (text as pg_url) WITH FUNCTION pg_url(text) AS IMPLICIT;
-CREATE CAST (pg_url as text) WITH FUNCTION text(pg_url);
+CREATE CAST (text as pg_url) WITH FUNCTION pg_url(text) AS ASSIGNMENT;
+CREATE CAST (pg_url as text) WITH INOUT AS ASSIGNMENT;
 
 CREATE OR REPLACE FUNCTION pg_url_equals_internal(pg_url, pg_url) 
 RETURNS boolean
