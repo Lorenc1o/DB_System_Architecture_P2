@@ -24,8 +24,8 @@ insert into test_equals values (1, 'http://www.test.com:80/file', 'http://www.te
 insert into test_equals values (2, 'http://www.test.com:80/file', 'https://www.test2.es:95/file');
 insert into test_equals values (3, 'http://www.test.com:80/file2', 'http://www.test.com:80/file');
 select * from test_equals;
-select * from test_equals where pg_equals(u1, u2);
-select * from test_equals where not pg_equals(u1, u2);
+select * from test_equals where pg_url_equals(u1, u2);
+select * from test_equals where not pg_url_equals(u1, u2);
 select * from test_equals where u1 = u2;
 select * from test_equals where same_host(u1,u2);
 select * from test_equals where same_file(u1,u2);
@@ -36,3 +36,11 @@ select * from test_equals where u1 > u2;
 select * from test_equals where u1 >= u2;
 
 create index test_url_u on test_url using btree (u);
+
+set enable_seqscan = off;
+
+explain select * from test_url where u = 'test.es';
+explain select * from test_url where same_host(u,'test.es');
+explain select same_host(u,'test.es') from test_url;
+explain select same_file(u,'test.es') from test_url;
+explain select pg_url_equals(u,'test.es') from test_url;

@@ -87,7 +87,7 @@ LANGUAGE C IMMUTABLE STRICT;
 CREATE CAST (text as pg_url) WITH FUNCTION pg_url(text) AS IMPLICIT;
 CREATE CAST (pg_url as text) WITH FUNCTION text(pg_url);
 
-CREATE OR REPLACE FUNCTION pg_equals_internal(pg_url, pg_url) 
+CREATE OR REPLACE FUNCTION pg_url_equals_internal(pg_url, pg_url) 
 RETURNS boolean
 AS '$libdir/url', 'equals'
 LANGUAGE C IMMUTABLE STRICT;
@@ -102,22 +102,22 @@ RETURNS boolean
 AS '$libdir/url', 'same_file'
 LANGUAGE C IMMUTABLE STRICT;
 
-CREATE OR REPLACE FUNCTION pg_less_than(pg_url, pg_url)
+CREATE OR REPLACE FUNCTION pg_url_less_than(pg_url, pg_url)
 RETURNS boolean
 AS '$libdir/url', 'less_than'
 LANGUAGE C IMMUTABLE STRICT;
 
-CREATE OR REPLACE FUNCTION pg_less_than_or_equal(pg_url, pg_url)
+CREATE OR REPLACE FUNCTION pg_url_less_than_or_equal(pg_url, pg_url)
 RETURNS boolean
 AS '$libdir/url', 'less_than_or_equal'
 LANGUAGE C IMMUTABLE STRICT;
 
-CREATE OR REPLACE FUNCTION pg_greater_than(pg_url, pg_url)
+CREATE OR REPLACE FUNCTION pg_url_greater_than(pg_url, pg_url)
 RETURNS boolean
 AS '$libdir/url', 'greater_than'
 LANGUAGE C IMMUTABLE STRICT;
 
-CREATE OR REPLACE FUNCTION pg_greater_than_or_equal(pg_url, pg_url)
+CREATE OR REPLACE FUNCTION pg_url_greater_than_or_equal(pg_url, pg_url)
 RETURNS boolean
 AS '$libdir/url', 'greater_than_or_equal'
 LANGUAGE C IMMUTABLE STRICT;
@@ -127,7 +127,7 @@ RETURNS int
 AS '$libdir/url', 'pg_url_cmp'
 LANGUAGE C IMMUTABLE STRICT;
 
-CREATE OR REPLACE FUNCTION same_host(pg_url, pg_url)
+CREATE OR REPLACE FUNCTION same_host_internal(pg_url, pg_url)
 RETURNS boolean
 AS '$libdir/url', 'same_host'
 LANGUAGE C IMMUTABLE STRICT;
@@ -140,7 +140,7 @@ LANGUAGE C IMMUTABLE STRICT;
 CREATE OPERATOR = (
 	LEFTARG = pg_url,
 	RIGHTARG = pg_url,
-	PROCEDURE = same_host,
+	PROCEDURE = same_host_internal,
 	COMMUTATOR = '=',
 	NEGATOR = '<>',
 	RESTRICT = eqsel,
@@ -159,20 +159,50 @@ CREATE OPERATOR <> (
 );
 COMMENT ON OPERATOR <>(pg_url, pg_url) IS 'hosts not equal?';
 
+CREATE OR REPLACE FUNCTION same_host(pg_url, pg_url)
+RETURNS boolean
+AS 'SELECT $1 = $2'
+LANGUAGE SQL IMMUTABLE STRICT;
+
 CREATE OR REPLACE FUNCTION same_file(pg_url, pg_url)
 RETURNS boolean
 AS 'SELECT $1 = $2 AND same_file_internal($1, $2)'
 LANGUAGE SQL IMMUTABLE STRICT;
 
-CREATE OR REPLACE FUNCTION pg_equals(pg_url, pg_url)
+CREATE OR REPLACE FUNCTION pg_url_equals(pg_url, pg_url)
 RETURNS boolean
-AS 'same_file($1,$2) AND pg_equals_internal($1, $2)'
+AS 'SELECT same_file($1,$2) AND pg_url_equals_internal($1, $2)'
 LANGUAGE SQL IMMUTABLE STRICT; 
+
+CREATE OR REPLACE FUNCTION pg_url_less_than_host(pg_url, pg_url)
+RETURNS boolean
+AS '$libdir/url', 'less_than_host'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION pg_url_less_than_or_equal_host(pg_url, pg_url)
+RETURNS boolean
+AS '$libdir/url', 'less_than_or_equal_host'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION pg_url_greater_than_host(pg_url, pg_url)
+RETURNS boolean
+AS '$libdir/url', 'greater_than_host'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION pg_url_greater_than_or_equal_host(pg_url, pg_url)
+RETURNS boolean
+AS '$libdir/url', 'greater_than_or_equal_host'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION pg_url_cmp_host(pg_url, pg_url)
+RETURNS int
+AS '$libdir/url', 'pg_url_cmp_host'
+LANGUAGE C IMMUTABLE STRICT;
 
 CREATE OPERATOR < (
     LEFTARG = pg_url,
     RIGHTARG = pg_url,
-    PROCEDURE = pg_less_than,
+    PROCEDURE = pg_url_less_than_host,
     COMMUTATOR = '>',
     NEGATOR = '>=',
     RESTRICT = scalarltsel,
@@ -183,7 +213,7 @@ COMMENT ON OPERATOR <(pg_url, pg_url) IS 'less than?';
 CREATE OPERATOR <= (
     LEFTARG = pg_url,
     RIGHTARG = pg_url,
-    PROCEDURE = pg_less_than_or_equal,
+    PROCEDURE = pg_url_less_than_or_equal_host,
     COMMUTATOR = '>=',
     NEGATOR = '>',
     RESTRICT = scalargtsel,
@@ -194,7 +224,7 @@ COMMENT ON OPERATOR <=(pg_url, pg_url) IS 'less than or equal?';
 CREATE OPERATOR > (
     LEFTARG = pg_url,
     RIGHTARG = pg_url,
-    PROCEDURE = pg_greater_than,
+    PROCEDURE = pg_url_greater_than_host,
     COMMUTATOR = '<',
     NEGATOR = '<=',
     RESTRICT = scalarltsel,
@@ -205,7 +235,7 @@ COMMENT ON OPERATOR >(pg_url, pg_url) IS 'greater than?';
 CREATE OPERATOR >= (
     LEFTARG = pg_url,
     RIGHTARG = pg_url,
-    PROCEDURE = pg_greater_than_or_equal,
+    PROCEDURE = pg_url_greater_than_or_equal_host,
     COMMUTATOR = '<=',
     NEGATOR = '<',
     RESTRICT = scalargtsel,
@@ -220,4 +250,4 @@ DEFAULT FOR TYPE pg_url USING btree AS
     OPERATOR 3 =,
     OPERATOR 4 >=,
     OPERATOR 5 >,
-    FUNCTION 1 pg_url_cmp(pg_url, pg_url);
+    FUNCTION 1 pg_url_cmp_host(pg_url, pg_url);

@@ -335,7 +335,7 @@ get_host(PG_FUNCTION_ARGS)
   pg_url *url = (pg_url *)(&(url_buf->vl_dat));
   url = (pg_url *) pg_detoast_datum(url_buf);
 
-  // Get the  of the host
+  // Get the position of the host
   int prot_size = url->protocol_len;
 
   // Get the host length
@@ -474,6 +474,7 @@ pg_url_cmp(PG_FUNCTION_ARGS)
 
   // Compare the strings
   int result = strcmp(str1, str2);
+  elog(INFO, "str1: %s, str2: %s", str1, str2);
   /*
   strcmp Returns:	Scenario:
   0			if strings are equal		
@@ -533,7 +534,7 @@ same_host(PG_FUNCTION_ARGS)
   struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
   pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
   url2 = (pg_url *) pg_detoast_datum(url_buf2);
-
+  elog(INFO, "here");
   //Compare components
   bool result = (url1->host_len == url2->host_len);
   
@@ -744,4 +745,114 @@ greater_than_or_equal(PG_FUNCTION_ARGS)
   <0			if the first non-matching character in str1 is lower (in ASCII) than that of str2.
   */
   PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(less_than_host);
+Datum
+less_than_host(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  // Compute hosts
+  char *host1 = url1->data + url1->protocol_len;
+  char *host2 = url2->data + url2->protocol_len;
+  // is host1 < host2?
+  bool result = strcmp(host1, host2) < 0;
+
+  PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(less_than_or_equal_host);
+Datum
+less_than_or_equal_host(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  // Compute hosts
+  char *host1 = url1->data + url1->protocol_len;
+  char *host2 = url2->data + url2->protocol_len;
+  // is host1 <= host2?
+  bool result = strcmp(host1, host2) <= 0;
+
+  PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(greater_than_host);
+Datum
+greater_than_host(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  // Compute hosts
+  char *host1 = url1->data + url1->protocol_len;
+  char *host2 = url2->data + url2->protocol_len;
+  // is host1 > host2?
+  bool result = strcmp(host1, host2) > 0;
+
+  PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(greater_than_or_equal_host);
+Datum
+greater_than_or_equal_host(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  // Compute hosts
+  char *host1 = url1->data + url1->protocol_len;
+  char *host2 = url2->data + url2->protocol_len;
+  // is host1 >= host2?
+  bool result = strcmp(host1, host2) >= 0;
+
+  PG_RETURN_BOOL(result);
+}
+
+PG_FUNCTION_INFO_V1(pg_url_cmp_host);
+Datum
+pg_url_cmp_host(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf1 = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url1 = (pg_url *)(&(url_buf1->vl_dat));
+  url1 = (pg_url *) pg_detoast_datum(url_buf1);
+
+  struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
+  pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
+  url2 = (pg_url *) pg_detoast_datum(url_buf2);
+
+  // Compute hosts
+  char *host1 = url1->data + url1->protocol_len;
+  char *host2 = url2->data + url2->protocol_len;
+  // Compare hosts
+  int result = strcmp(host1, host2);
+  /*
+  strcmp Returns:	Scenario:
+  0			if strings are equal		
+  >0			if the first non-matching character in str1 is greater (in ASCII) than that of str2.
+  <0			if the first non-matching character in str1 is lower (in ASCII) than that of str2.
+  */
+  PG_RETURN_INT32(result);
 }
