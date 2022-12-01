@@ -65,9 +65,14 @@ RETURNS cstring
 AS '$libdir/url', 'getPath'
 LANGUAGE C IMMUTABLE STRICT;
 
-CREATE OR REPLACE FUNCTION getQuery(pg_url)
+CREATE OR REPLACE FUNCTION getQuery(cstring)
 RETURNS cstring
 AS '$libdir/url', 'getQuery'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION getRef(cstring)
+RETURNS cstring
+AS '$libdir/url', 'getRef'
 LANGUAGE C IMMUTABLE STRICT;
 
 CREATE OR REPLACE FUNCTION get_port(pg_url)

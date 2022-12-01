@@ -446,54 +446,114 @@ get_protocol(PG_FUNCTION_ARGS)
   PG_RETURN_CSTRING(str);
 }
 
-// TODO: varchar getQuery() Gets the query part of this URL.
+// varchar getQuery() Gets the query part of this URL.
 PG_FUNCTION_INFO_V1(getQuery);
 Datum
 getQuery(PG_FUNCTION_ARGS)
 {
   struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
-  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
-  url = (pg_url *) pg_detoast_datum(url_buf);
+  char *url = (char * ) (&(url_buf->vl_dat));
+  url = (char *) pg_detoast_datum(url_buf);
 
   regex_t reegex;
   
-  int value = regcomp( &reegex, "([^/?#]*)(\\?([^#]*))?(#(.*))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
-  regmatch_t pmatch[5];
+  int value = regcomp( &reegex,
+  //"([a-zA-Z0-9\\\^:./?#\\-]*)*(\\?([^#]*))?(#(.*))?"
+  "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?" //URL estandar
+  //"(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=\\-]+))?" //Jose
+   ,REG_EXTENDED); //"([a-zA-Z0-9\\\^:/?#\\-]*)*(\\?([^#]*))?(#(.*))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+  regmatch_t pmatch[10];
 	    /*
 	  5 expected matches from url:
-		  pmatch[0] =before query
-		  pmatch[1] =  ?query
-		  pmatch[2] = query
-		  pmatch[3] = host
-		  pmatch[4] =fragment
+		      scheme    = $2
+		      authority = $4
+		      path      = $5
+		      query     = $7
+		      fragment  = $9
 
 	  */
 	  
-   value = regexec( &reegex, url, 5, pmatch, 0);
-	  
+   value = regexec( &reegex, url, 10, pmatch, 0);
 	  
 	  // Extract the query
    char *query;
+   char *str;
 
-  if (pmatch[2].rm_so == -1)
+  if (pmatch[7].rm_so == -1)
   {
     query = malloc(1);
     memcpy(query, "", 1);
+    query = "No query found. Verify if the URL is written properly";
   } else{
-    char *query_start = pmatch[2].rm_so;
-    size_t query_length = pmatch[2].rm_eo - pmatch[3].rm_so;
+    char *query_start = url + pmatch[7].rm_so;
+    size_t query_length = pmatch[7].rm_eo - pmatch[7].rm_so;
     query = malloc(query_length + 1);
     memset(query, 0, query_length + 1);
     memcpy(query, query_start, query_length);
+
   }
 
-  char *str = psprintf("%s", query);
   regfree(&reegex);
+  
+  str = psprintf("%s", query);
   
   PG_RETURN_CSTRING(str);
 }
 
-// TODO: String getRef() Gets the anchor (also known as the "reference") of this URL.
+//String getRef() Gets the anchor (also known as the "reference") of this URL.
+PG_FUNCTION_INFO_V1(getRef);
+Datum
+getRef(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  char *url = (char * ) (&(url_buf->vl_dat));
+  url = (char *) pg_detoast_datum(url_buf);
+
+  regex_t reegex;
+  
+  int value = regcomp( &reegex,
+  //"([a-zA-Z0-9\\\^:./?#\\-]*)*(\\?([^#]*))?(#(.*))?"
+  "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?" //URL estandar
+  //"(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=\\-]+))?" //Jose
+   ,REG_EXTENDED); //"([a-zA-Z0-9\\\^:/?#\\-]*)*(\\?([^#]*))?(#(.*))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+  regmatch_t pmatch[10];
+	    /*
+	  5 expected matches from url:
+		      scheme    = $2
+		      authority = $4
+		      path      = $5
+		      query     = $7
+		      fragment  = $9
+
+	  */
+	  
+   value = regexec( &reegex, url, 10, pmatch, 0);
+	  
+	  // Extract the query
+   char *query;
+   char *str;
+
+  if (pmatch[9].rm_so == -1)
+  {
+    query = malloc(1);
+    memcpy(query, "", 1);
+    query = "No query found. Verify if the URL is written properly";
+  } else{
+    char *query_start = url + pmatch[9].rm_so;
+    size_t query_length = pmatch[9].rm_eo - pmatch[9].rm_so;
+    query = malloc(query_length + 1);
+    memset(query, 0, query_length + 1);
+    memcpy(query, query_start, query_length);
+
+  }
+
+  regfree(&reegex);
+  
+  str = psprintf("%s", query);
+  
+  PG_RETURN_CSTRING(str);
+}
+
 // TODO: String getUserInfo() Gets the userInfo part of this URL.
 
 
