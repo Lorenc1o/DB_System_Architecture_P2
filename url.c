@@ -457,14 +457,13 @@ getQuery(PG_FUNCTION_ARGS)
 
   regex_t reegex;
   
+  //compare input to regex
   int value = regcomp( &reegex,
-  //"([a-zA-Z0-9\\\^:./?#\\-]*)*(\\?([^#]*))?(#(.*))?"
-  "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?" //URL estandar
-  //"(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=\\-]+))?" //Jose
-   ,REG_EXTENDED); //"([a-zA-Z0-9\\\^:/?#\\-]*)*(\\?([^#]*))?(#(.*))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+  "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?" //regex of URL estandar
+   ,REG_EXTENDED); 
   regmatch_t pmatch[10];
 	    /*
-	  5 expected matches from url:
+	   expected matches from url:
 		      scheme    = $2
 		      authority = $4
 		      path      = $5
@@ -479,6 +478,7 @@ getQuery(PG_FUNCTION_ARGS)
    char *query;
    char *str;
 
+	//Assign match to variable 'query'
   if (pmatch[7].rm_so == -1)
   {
     query = malloc(1);
@@ -512,13 +512,11 @@ getRef(PG_FUNCTION_ARGS)
   regex_t reegex;
   
   int value = regcomp( &reegex,
-  //"([a-zA-Z0-9\\\^:./?#\\-]*)*(\\?([^#]*))?(#(.*))?"
-  "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?" //URL estandar
-  //"(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=\\-]+))?" //Jose
-   ,REG_EXTENDED); //"([a-zA-Z0-9\\\^:/?#\\-]*)*(\\?([^#]*))?(#(.*))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+  "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?" //regex of URL estandar
+   ,REG_EXTENDED); 
   regmatch_t pmatch[10];
 	    /*
-	  5 expected matches from url:
+	   expected matches from url:
 		      scheme    = $2
 		      authority = $4
 		      path      = $5
@@ -529,27 +527,28 @@ getRef(PG_FUNCTION_ARGS)
 	  
    value = regexec( &reegex, url, 10, pmatch, 0);
 	  
-	  // Extract the query
-   char *query;
+	  // Extract the reference
+   char *ref;
    char *str;
 
+//Assign match to variable 'ref'
   if (pmatch[9].rm_so == -1)
   {
-    query = malloc(1);
-    memcpy(query, "", 1);
-    query = "No query found. Verify if the URL is written properly";
+    ref = malloc(1);
+    memcpy(ref, "", 1);
+    ref = "No reference found. Verify if the URL is written properly";
   } else{
-    char *query_start = url + pmatch[9].rm_so;
-    size_t query_length = pmatch[9].rm_eo - pmatch[9].rm_so;
-    query = malloc(query_length + 1);
-    memset(query, 0, query_length + 1);
-    memcpy(query, query_start, query_length);
+    char *ref_start = url + pmatch[9].rm_so;
+    size_t ref_length = pmatch[9].rm_eo - pmatch[9].rm_so;
+    ref = malloc(ref_length + 1);
+    memset(ref, 0, ref_length + 1);
+    memcpy(ref, ref_start, ref_length);
 
   }
 
   regfree(&reegex);
   
-  str = psprintf("%s", query);
+  str = psprintf("%s", ref);
   
   PG_RETURN_CSTRING(str);
 }
