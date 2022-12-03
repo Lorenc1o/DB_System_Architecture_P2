@@ -34,6 +34,14 @@ RETURNS pg_url
 AS '$libdir/url', 'url_constructor_from_fields'
 LANGUAGE C IMMUTABLE STRICT;
 
+
+-- Constructor URL(URL context, varchar spec) : url_constructor_context_spec
+CREATE OR REPLACE FUNCTION pg_url(pg_url, cstring)
+RETURNS pg_url
+AS '$libdir/url', 'url_constructor_context_spec'
+LANGUAGE C IMMUTABLE STRICT;
+
+
 CREATE OR REPLACE FUNCTION pg_url(cstring, cstring, cstring)
 RETURNS pg_url
 AS '$libdir/url', 'url_constructor_from_fields_default_port'
