@@ -293,16 +293,16 @@ Datum
 url_constructor_context_spec(PG_FUNCTION_ARGS)
 {
   //URL Generic syntax considered: <scheme>://<authority><path>?<query>#<fragment>
-  pg_url *resulting_url;
-  memcpy(resulting_url, "", 1);
-  resulting_url = "";
-  
+ 
    
   //Get URL context
   struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
   pg_url *url = (pg_url *)(&(url_buf->vl_dat));
   url = (pg_url *) pg_detoast_datum(url_buf);
   
+   pg_url *resulting_url;
+  //memcpy(resulting_url, "", 1);
+  resulting_url = "";
   //Get URL spec
   char *spec_strng = PG_GETARG_CSTRING(1);
   //Cast spec into pg_url
@@ -316,8 +316,8 @@ url_constructor_context_spec(PG_FUNCTION_ARGS)
   "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?" //regex of URL estandar
    ,REG_EXTENDED); 
   regmatch_t spec_pmatch[10];
-	    /*
-	   expected matches from url:
+	    
+	  /*  expected matches from url:
 		      scheme    = $2
 		      authority = $4
 		      path      = $5
@@ -326,7 +326,7 @@ url_constructor_context_spec(PG_FUNCTION_ARGS)
 	  */
 	  
    value = regexec( &spec_reegex, spec_url, 10, spec_pmatch, 0);
-   	  
+   	 
    // Extract spec elements
    char *spec_path;
 
@@ -341,15 +341,16 @@ url_constructor_context_spec(PG_FUNCTION_ARGS)
 		   char *result_scheme= "";
 		   char *result_authority= "";
 		   char *result_host= "";
-		   int result_port= "";
+		   int result_port;
 		   char *result_path= "";
 		   char *result_query= "";
 		   char *result_file= "";
 		   char *result_fragment= "";
+		   
 		   //--Get Context Protocol (aka Schema)
 		   result_scheme = url->data;
 		   
-	    
+	    /*
 	    	if (spec_pmatch[4].rm_so == -1) //If spec has no authority, the authority of the new URL will be inherited from the context.
 		  {
 		  
@@ -413,7 +414,7 @@ url_constructor_context_spec(PG_FUNCTION_ARGS)
 
 			  }
 	   
-		    
+		    	result_file= psprintf("%s?%s#%s", result_path, result_query, result_fragment);
 		  } else{ //If spec has authority, then the spec authority and path will replace the context authority and path. 
 		    char *result_authority_start = spec_url + spec_pmatch[4].rm_so;
 		    size_t spec_authority_length = spec_pmatch[4].rm_eo - spec_pmatch[4].rm_so;
@@ -422,19 +423,16 @@ url_constructor_context_spec(PG_FUNCTION_ARGS)
 		    memcpy(result_authority, result_authority_start, spec_authority_length);
 
 		  }
-	    
-	    
-	    result_file= psprintf("%s?%s#%s", result_host, result_port, result_fragment);
-	    
+
+	    */
 	    resulting_url = create_url_from_fields(result_scheme, result_host, result_port, result_file);
+	    regfree(&spec_reegex);
 	    
 	  } else{//If spec has scheme, then the new URL is created as an absolute URL based on the spec alone.
 	    resulting_url = spec_url;
 	  }
-  
-  regfree(&spec_reegex);
- 
-  PG_RETURN_POINTER(url);
+ 	
+  PG_RETURN_POINTER(resulting_url); //(resulting_url);
 }
 
 // ---- Methods
