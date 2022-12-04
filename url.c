@@ -313,7 +313,7 @@ url_constructor_context_spec(PG_FUNCTION_ARGS)
   
   //compare spec_url to regex
   int value = regcomp( &spec_reegex,
-  "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?" //regex of URL estandar
+  "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([a-zA-Z^#]*))?(#(.*))?" 
    ,REG_EXTENDED); 
   regmatch_t spec_pmatch[10];
 	    
@@ -326,31 +326,47 @@ url_constructor_context_spec(PG_FUNCTION_ARGS)
 	  */
 	  
    value = regexec( &spec_reegex, spec_url, 10, spec_pmatch, 0);
-   	 
-   // Extract spec elements
-   char *spec_path;
-
+   regfree(&spec_reegex);
    
+
+   char *spec_path;
+   char *str_result;
+
+   //Spec data
+   int spec_prot_size = spec_url->protocol_len;
+   int spec_host_size = spec_url->host_len;
+   int spec_file_size = spec_url->file_len;
+   
+   
+   //Context data
    int prot_size = url->protocol_len;
    int host_size = url->host_len;
    int file_size = url->file_len;
   
+   char *context_scheme = url->data;
+   char *spec_scheme = spec_url -> data;
    
-	if (spec_pmatch[2].rm_so == -1)//If spec has no scheme, the scheme component is inherited from the context URL.
+   
+	if (spec_pmatch[2].rm_so != -1 && context_scheme != spec_scheme)//If spec has scheme and does not match the scheme of the context, then the new URL is created as an absolute URL based on the spec alone.
 	  {
-		   char *result_scheme= "";
+		   //TODO: Fix - This condition is never happening
+		   
+		   PG_RETURN_POINTER(spec_url);
+	  
+	  } else{ //If spec has no scheme, the scheme component is inherited from the context URL.
+	   	   char *result_scheme= "";
 		   char *result_authority= "";
 		   char *result_host= "";
 		   int result_port;
 		   char *result_path= "";
-		   char *result_query= "";
+		   char *result_query= "q";
 		   char *result_file= "";
-		   char *result_fragment= "";
+		   char *result_fragment= "f";
 		   
 		   //--Get Context Protocol (aka Schema)
-		   result_scheme = url->data;
+		   result_scheme = context_scheme;
+		   //str_result = strcat(str_result, context_scheme);
 		   
-	    /*
 	    	if (spec_pmatch[4].rm_so == -1) //If spec has no authority, the authority of the new URL will be inherited from the context.
 		  {
 		  
@@ -366,16 +382,20 @@ url_constructor_context_spec(PG_FUNCTION_ARGS)
 			  {
 				    spec_path = malloc(1);
 				    memcpy(spec_path, "", 1);
-				    spec_path = "";
+				    spec_path = "No path";
 			  } else{// If spec has a path
 			  ///---TODO: If the spec's path component begins with a slash character "/" then the path is treated as absolute and the spec path replaces the context path. 
 			  //Otherwise, the path is treated as a relative path and is appended to the context path.
 			  	//Get spec path
+			  	//TODO: Fix - Not finding spec in result
 				    char *spec_path_start = spec_url + spec_pmatch[5].rm_so;
 				    size_t spec_path_length = spec_pmatch[5].rm_eo - spec_pmatch[5].rm_so;
 				    spec_path = malloc(spec_path_length + 1);
 				    memset(spec_path, 0, spec_path_length + 1);
 				    memcpy(spec_path, spec_path_start, spec_path_length);
+				    
+				 // char *spec_file = spec_url->data + spec_prot_size + spec_host_size; // Get the file
+				 //char *spec_path = "specpath"; //strtok(spec_file, "?");
 				    
 				//Get context path
 				  char *context_file = url->data + prot_size + host_size; // Get the file
@@ -391,47 +411,56 @@ url_constructor_context_spec(PG_FUNCTION_ARGS)
 			    {
 			    	//TODO
 			    } 
+			    //TODO: Fix - Allways entering here, even when spec has a query
+			    result_query = "entraifnoQ";
 			    
 			  } else{
+			  
 			    char *spec_query_start = spec_url + spec_pmatch[7].rm_so;
 			    size_t spec_query_length = spec_pmatch[7].rm_eo - spec_pmatch[7].rm_so;
 			    result_query = malloc(spec_query_length + 1);
 			    memset(result_query, 0, spec_query_length + 1);
 			    memcpy(result_query, spec_query_start, spec_query_length);
+			    result_query = "entraQ";
 			  }
 			  
 			  if (spec_pmatch[7].rm_so == -1)
 			  {
 			    result_fragment = malloc(1);
 			    memcpy(result_fragment, "", 1);
-			    result_fragment = "";
+			    result_fragment = "insideifNofragment";
 			  } else{
 			    char *result_fragment_start = spec_url + spec_pmatch[9].rm_so;
 			    size_t result_fragment_length = spec_pmatch[9].rm_eo - spec_pmatch[9].rm_so;
 			    result_fragment = malloc(result_fragment_length + 1);
 			    memset(result_fragment, 0, result_fragment_length + 1);
 			    memcpy(result_fragment, result_fragment_start, result_fragment_length);
+			    result_fragment = "insideifhasfragment";
 
 			  }
 	   
 		    	result_file= psprintf("%s?%s#%s", result_path, result_query, result_fragment);
 		  } else{ //If spec has authority, then the spec authority and path will replace the context authority and path. 
+		  //TODO: Fix -- Never entering this condition
 		    char *result_authority_start = spec_url + spec_pmatch[4].rm_so;
 		    size_t spec_authority_length = spec_pmatch[4].rm_eo - spec_pmatch[4].rm_so;
 		    result_authority = malloc(spec_authority_length + 1);
 		    memset(result_authority, 0, spec_authority_length + 1);
 		    memcpy(result_authority, result_authority_start, spec_authority_length);
-
+		    
+		    // Get the protocol, host and the port
+			  result_host = spec_url->data + spec_prot_size;
+			  result_port = spec_url->port;
+			  
+	           //Build the Authority
+			  //result_authority = psprintf("%s:%d", result_host, result_port);
+	
 		  }
 
-	    */
-	    resulting_url = create_url_from_fields(result_scheme, result_host, result_port, result_file);
-	    regfree(&spec_reegex);
 	    
-	  } else{//If spec has scheme, then the new URL is created as an absolute URL based on the spec alone.
-	    resulting_url = spec_url;
-	  }
- 	
+	    resulting_url = create_url_from_fields(result_scheme, result_host, result_port, result_file);
+	    }
+  
   PG_RETURN_POINTER(resulting_url); //(resulting_url);
 }
 

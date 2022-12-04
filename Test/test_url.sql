@@ -15,15 +15,17 @@ insert into test_url values (6, pg_url('ftp','example.com','file'));
 */
 -- -->> Constructor context spec
 --If spec has no scheme, the scheme component is inherited from the context URL.
-insert into test_url values (7, pg_url('http://www.test.com/file?param1=1&param2=2','www.test.com/')); 
-insert into test_url values (7, pg_url('fttp://www.test.com/file?param1=1&param2=2','http://www.test.com/')); 
+insert into test_url values (7, pg_url('http://www.test.com/filecontext/context?param1=1&param2=2#ref','www.spec.com/filespec/spec?specQ#ref')); 
+insert into test_url values (8, pg_url('fttp://www.test.com/file?param1=1&param2=2','http://www.spec.com/')); --F
 
 --TODO: The reference is parsed into the scheme, authority, path, query and fragment parts. If the path component is empty and the scheme, authority, and query components are undefined, then the new URL is a reference to the current document. Otherwise, the fragment and query parts present in the spec are used in the new URL.
 
 --If the scheme component is defined in the given spec and does not match the scheme of the context, then the new URL is created as an absolute URL based on the spec alone. Otherwise the scheme component is inherited from the context URL.
 
-insert into test_url values (8, pg_url('ftp://www.test.com/file?param1=1&param2=2','http://www.test.com/')); --F
-insert into test_url values (9, pg_url('ftp://www.test.com/file?param1=1&param2=2','ftp://www.test.com/')); --F
+insert into test_url values (9, pg_url('ftp://www.test.com/file?param1=1&param2=2','http://www.spec.com/')); --F
+insert into test_url values (18, pg_url('ftp://www.test.com/file?param1=1&param2=2','ftp://www.spec.com/')); --F
+
+insert into test_url values (7, pg_url('http://www.test.com/filecontext/context?param1=1&param2=2#ref','www.spec.com/filespec/spec?specQ#specref')); 
 select * from test_url;
 
 /*
