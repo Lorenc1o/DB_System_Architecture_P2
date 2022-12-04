@@ -319,6 +319,9 @@ PG_FUNCTION_INFO_V1(url_constructor_context_spec);
 Datum
 url_constructor_context_spec(PG_FUNCTION_ARGS)
 {
+  //URL Generic syntax considered: <scheme>://<authority><path>?<query>#<fragment>
+ 
+   
   //Get URL context
   struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
   pg_url *url = (pg_url *)(&(url_buf->vl_dat));
