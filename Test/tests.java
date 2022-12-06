@@ -45,7 +45,7 @@ public class Main {
             listEmptyPath.add(new URL(baseURL3, ""));
             listEmptyPath.add(new URL(baseURL3, "?query=testing&spec=2#specRef"));
 
-            System.out.println("\n-The reference is parsed into the scheme, authority, path, query and fragment parts.");
+            System.out.println("\n--The reference is parsed into the scheme, authority, path, query and fragment parts.");
             for (int i = 0; i < listEmptyPath.size(); i++) {
                 System.out.println(i + ": " + listEmptyPath.get(i));
             }
@@ -109,7 +109,7 @@ public class Main {
             URL baseURL7 = new URL("ftp://www.test.com/filecontext/con");
 
             List<URL> listOtherPath = new ArrayList<URL>();
-            listOtherPath.add(new URL(new URL("www.test.com/huiui/"), "?param1=1&param2=2"));
+            listOtherPath.add(new URL(new URL("http://www.test.com/huiui/"), "?param1=1&param2=2"));
             listOtherPath.add(new URL(baseURL7, "?param1=1&param2=2"));
             listOtherPath.add(new URL(new URL("http://www.test.com/filecontext/context?param1=1&param2=2#ref"), "moimo/kjoil=moi"));
             listOtherPath.add(new URL(baseURL7, "param1=1&param2=2"));
@@ -130,7 +130,7 @@ public class Main {
             // get the  UserInfo
             String _UserInfo = urlUser.getUserInfo();
             String _Host = urlUser.getHost();
-
+            System.out.println("\nUserInfo:\n");
             // display the URL
             System.out.println("URL = " + urlUser);
 
