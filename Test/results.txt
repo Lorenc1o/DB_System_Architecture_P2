@@ -1,4 +1,4 @@
-/usr/lib/jvm/java-1.11.0-openjdk-amd64/bin/java -javaagent:/snap/intellij-idea-ultimate/398/lib/idea_rt.jar=36273:/snap/intellij-idea-ultimate/398/bin -Dfile.encoding=UTF-8 -classpath /home/arina/IdeaProjects/test-URL/target/classes org.example.Main
+/usr/lib/jvm/java-1.11.0-openjdk-amd64/bin/java -javaagent:/snap/intellij-idea-ultimate/398/lib/idea_rt.jar=42481:/snap/intellij-idea-ultimate/398/bin -Dfile.encoding=UTF-8 -classpath /home/arina/IdeaProjects/test-URL/target/classes org.example.Main
 
 --Exchanging each element:
 0: https:
@@ -13,7 +13,7 @@
 0: http://www.test.com/filecontext/www.spec.com/filespec/spec?specQ#ref
 1: http://www.spec.com/
 
--The reference is parsed into the scheme, authority, path, query and fragment parts.
+--The reference is parsed into the scheme, authority, path, query and fragment parts.
 0: http://www.test.com/filecontext/context?param1=1&param2=2#ref
 1: http://www.test.com/filecontext/context?param1=1&param2=2#ref
 2: http://www.test.com/filecontext/?query=testing&spec=2#specRef
@@ -31,7 +31,16 @@ java.net.MalformedURLException: unknown protocol: www.geeksforgeeks.org
 --TODO:If the spec's path component begins with a slash character "/" then the path is treated as absolute and the spec path replaces the context path
 0: ftp://www.test.com/filespec/spec?specQ#specref
 1: http://www.test.com/filespec/spec#specref
-java.net.MalformedURLException: no protocol: www.test.com/huiui/
+
+--Otherwise, the path is treated as a relative path and is appended to the context path
+0: http://www.test.com/huiui/?param1=1&param2=2
+1: ftp://www.test.com/filecontext/?param1=1&param2=2
+2: http://www.test.com/filecontext/moimo/kjoil=moi
+3: ftp://www.test.com/filecontext/param1=1&param2=2
+4: ftp://www.test.com/filecontext/con#specRef
+
+UserInfo:
+
 URL = https://Arnab_Kundu:pwwd1234@www.geeksforgeeks.org
  UserInfo= Arnab_Kundu:pwwd1234
  Host= www.geeksforgeeks.org
