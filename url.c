@@ -5,6 +5,7 @@
 #include <strings.h>
 #include "funcapi.h"
 #include <regex.h>
+#include<stdio.h>
  
 PG_MODULE_MAGIC; //“magic block”  to ensure that a dynamically loaded object file is not loaded into an incompatible server, required by PostgreSQL 
 
@@ -90,7 +91,6 @@ static pg_url* create_url_from_fields(char *protocol, char *user, char *host, in
 static pg_url* parse_url(char *url){ //Receive the url and split into its components
   regex_t reegex;
   // Creation of regEx
-
   //                               protocol     :             user          : password         @         host         :  port     /  file
 	int value = regcomp( &reegex, "(([a-zA-Z0-9]+):\\/\\/)*((([a-zA-Z0-9\\._-]+(:[a-zA-Z0-9\\._-]+)?)@)?([a-zA-Z0-9\\._+-]+))(:([0-9]+))?(/([a-zA-Z0-9\\?_&#=]+))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
   regmatch_t pmatch[12];
@@ -98,6 +98,39 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
   Expected matches from url:
 	  pmatch[0] = full thing
 	  pmatch[1] = protocol://
+	int value = regcomp( &reegex, 
+	//"(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=\\-]+))?"
+	"(([a-zA-Z0-9]+):\\/\\/)?((a-zA-Z0-9.+-):?(a-zZ-Z0-9.+-)?@)?((www.)?[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)?)(:([0-9]+))?(/([a-zA-Z0-9\\?_&#=]+))?"
+	, REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+	
+	
+
+  /*
+    
+  12 expected matches from url:
+	  pmatch[0] =
+	  pmatch[1] =  
+	  pmatch[2] = protocol
+	  pmatch[3] = user host
+	  pmatch[4] =user
+	  pmatch[5] =password
+	  pmatch[6] = host
+	  pmatch[7] = www.x...
+	  pmatch[8] = www.
+	  pmatch[10] = port
+	  pmatch[11] = file
+  
+  
+  
+  */
+  
+  regmatch_t pmatch[12];
+  value = regexec( &reegex, url, 12, pmatch, 0);
+    
+  /*regmatch_t pmatch[9];
+  9 expected matches from url:
+	  pmatch[0] =
+	  pmatch[1] =  
 	  pmatch[2] = protocol
     pmatch[3] = userinfo@host
     pmatch[4] = userinfo@
@@ -111,6 +144,7 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
   */
   
   value = regexec( &reegex, url, 12, pmatch, 0);
+  
   
   
   // Extract the protocol
@@ -315,12 +349,212 @@ url_constructor_from_text(PG_FUNCTION_ARGS)
 }
 
 // TODO:  Constructor URL(URL context, varchar spec)
+PG_FUNCTION_INFO_V1(url_constructor_context_spec);
+Datum
+url_constructor_context_spec(PG_FUNCTION_ARGS)
+{
+  //Get URL context
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
+  
+   pg_url *resulting_url;
+  //memcpy(resulting_url, "", 1);
+  resulting_url = "";
+  //Get URL spec
+  char *spec_strng = PG_GETARG_CSTRING(1);
+  //Cast spec into pg_url
+  pg_url *spec_url = parse_url(spec_strng);
+   
 
+   //Spec data
+   int spec_prot_size = spec_url->protocol_len;
+   int spec_host_size = spec_url->host_len;
+   int spec_file_size = spec_url->file_len;
+
+   char *spec_path;
+   
+   
+   //Context data
+   int prot_size = url->protocol_len;
+   int host_size = url->host_len;
+   int file_size = url->file_len;
+  
+   char *context_scheme = url->data;
+   char *spec_scheme = spec_url -> data;
+
+   //result variables
+       char *str_result;
+       char *result_scheme= "";
+		   char *result_authority= "";
+		   char *result_host= "h";
+		   int result_port;
+		   char *result_path= "p";
+		   char *result_query= "q";
+		   char *result_file= "";
+		   char *result_fragment= "f";
+
+       //Regex to split spec
+    regex_t spec_reegex;
+    
+    //compare spec_url to regex
+    int value = regcomp( &spec_reegex,
+    //   <scheme>       ://   <authority>   /<path>    ? <query>          #<fragment>
+    "(([a-zA-Z0-9^/?#]+)://)?(([^/?#]*))?(\\/[^?#]*)?(\\?([a-zA-Z0-9^#]*))?(#(.*))?" 
+    ,REG_EXTENDED); 
+    regmatch_t spec_pmatch[10];
+
+      //URL Generic syntax considered: 
+      /*  expected matches from url:
+            scheme    = $2
+            authority = $4
+            path      = $5
+            query     = $7
+            fragment  = $9
+      */
+      
+    value = regexec( &spec_reegex, spec_url, 10, spec_pmatch, 0);
+   
+	if (spec_pmatch[2].rm_so == -1)//If spec has no scheme, the scheme component is inherited from the context URL.
+  {
+		   //--Get Context Protocol (aka Schema)
+		   result_scheme = context_scheme;
+		   //str_result = strcat(str_result, context_scheme);
+		   
+	    	if (spec_pmatch[4].rm_so == -1) //If spec has no authority, the authority of the new URL will be inherited from the context.
+		  {
+		  
+			 // Get the protocol, host and the port
+			  result_host = url->data + prot_size;
+			  result_port = url->port;
+			  
+			  //Build the Authority
+			  result_authority = psprintf("%s:%d", result_host, result_port);
+			  
+			  
+			  if (spec_pmatch[5].rm_so == -1) //If spec doesnt have path
+			  {
+				    spec_path = malloc(1);
+				    memcpy(spec_path, "", 1);
+				    spec_path = "No path";
+			  } else{// If spec has a path
+			  ///---TODO: If the spec's path component begins with a slash character "/" then the path is treated as absolute and the spec path replaces the context path. 
+			  //Otherwise, the path is treated as a relative path and is appended to the context path.
+			  	//Get spec path
+			  	//TODO: Fix - Not finding spec in result
+				    char *spec_path_start = spec_url + spec_pmatch[5].rm_so;
+				    size_t spec_path_length = spec_pmatch[5].rm_eo - spec_pmatch[5].rm_so;
+				    spec_path = malloc(spec_path_length + 1);
+				    memset(spec_path, 0, spec_path_length + 1);
+				    memcpy(spec_path, spec_path_start, spec_path_length);
+				    
+				 // char *spec_file = spec_url->data + spec_prot_size + spec_host_size; // Get the file
+				 //char *spec_path = "specpath"; //strtok(spec_file, "?");
+				    
+				//Get context path
+				  char *context_file = url->data + prot_size + host_size; // Get the file
+				  char *context_path = strtok(context_file, "?"); //Separate query from file
+				   
+				  result_path = strcat(context_path, spec_path);
+
+			  }
+			  
+			  if (spec_pmatch[7].rm_so == -1)//If query is empty
+			  {
+			    if(spec_path == "") //If path is empty and scheme, authority, and query are undefined, then the new URL is a reference to the current document. Otherwise, the fragment and query parts present in the spec are used in the new URL.???
+			    {
+			    	//TODO
+			    } 
+			    //TODO: Fix - Allways entering here, even when spec has a query
+			    result_query = "entraifnoQ";
+			    
+			  } else{
+			  
+			    char *spec_query_start = spec_url + spec_pmatch[7].rm_so;
+			    size_t spec_query_length = spec_pmatch[7].rm_eo - spec_pmatch[7].rm_so;
+			    result_query = malloc(spec_query_length + 1);
+			    memset(result_query, 0, spec_query_length + 1);
+			    memcpy(result_query, spec_query_start, spec_query_length);
+			    result_query = "entraQ";
+			  }
+			  
+			  if (spec_pmatch[7].rm_so == -1)
+			  {
+			    result_fragment = malloc(1);
+			    memcpy(result_fragment, "", 1);
+			    result_fragment = "insideifNofragment";
+			  } else{
+			    char *result_fragment_start = spec_url + spec_pmatch[9].rm_so;
+			    size_t result_fragment_length = spec_pmatch[9].rm_eo - spec_pmatch[9].rm_so;
+			    result_fragment = malloc(result_fragment_length + 1);
+			    memset(result_fragment, 0, result_fragment_length + 1);
+			    memcpy(result_fragment, result_fragment_start, result_fragment_length);
+			    result_fragment = "insideifhasfragment";
+
+			  }
+	   
+		    	result_file= psprintf("%s?%s#%s", result_path, result_query, result_fragment);
+		  } else{ //If spec has authority, then the spec authority and path will replace the context authority and path. 
+
+		  //TODO: Fix -- Never entering this condition
+		    char *result_authority_start = spec_url + spec_pmatch[4].rm_so;
+		    size_t spec_authority_length = spec_pmatch[4].rm_eo - spec_pmatch[4].rm_so;
+		    result_authority = malloc(spec_authority_length + 1);
+		    memset(result_authority, 0, spec_authority_length + 1);
+		    memcpy(result_authority, result_authority_start, spec_authority_length);
+		    
+		    // Get the protocol, host and the port
+			  result_host = spec_url->data + spec_prot_size;
+			  result_port = spec_url->port;
+		  }
+	    
+	    resulting_url = create_url_from_fields(result_scheme, result_host, result_port, result_file);
+
+	  
+	  } else{ //If spec has scheme ---> then the new URL is created as an absolute URL based on the spec alone.
+
+      //TODO: Fix - This condition is never happening
+		   resulting_url=spec_url;
+	    }
+  
+  regfree(&spec_reegex);
+  PG_RETURN_POINTER(resulting_url); //(resulting_url);
+}
 
 // ---- Methods
 
-// TODO: include user in getAuthority() : Gets the authority part of this URL.
-// Gets the default port number of the protocol associated with this URL.
+// varchar getAuthority() : Gets the authority part of this URL.
+PG_FUNCTION_INFO_V1(getAuthority);
+Datum
+getAuthority(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
+  
+  // Get the  of the host
+  int prot_size = url->protocol_len;
+
+  // Get the host length
+  int host_size = url->host_len;
+
+  // Allocate enough memory for the string
+  char *str = palloc(host_size+4+1);
+
+  
+  // Get the host and the port
+  char *host = url->data + prot_size;
+  int port = url->port;
+  
+  //Build the Authority
+  str = psprintf("%s:%d", host, port);
+  
+  
+  PG_RETURN_CSTRING(str);
+}
+
+
+// int getDefaultPort(): Gets the default port number of the protocol associated with this URL.
 PG_FUNCTION_INFO_V1(get_default_port);
 Datum
 get_default_port(PG_FUNCTION_ARGS)
@@ -406,7 +640,33 @@ get_host(PG_FUNCTION_ARGS)
   PG_RETURN_CSTRING(str);
 }
 
-//TODO: varchar getPath() Gets the path part of this URL.
+//varchar getPath() Gets the path part of this URL.
+
+PG_FUNCTION_INFO_V1(getPath);
+Datum
+getPath(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
+
+  // Get the sizes
+  int prot_size = url->protocol_len;
+  int host_size = url->host_len;
+  int file_size = url->file_len;
+
+  // Allocate enough memory for the string
+  char *str = palloc(file_size);
+
+  // Get the file
+  char *file = url->data + prot_size + host_size;
+  char *ptr = strtok(file, "?");
+  
+  //str = psprintf("%s", ptr);
+  PG_RETURN_CSTRING(file);
+}
+
+
 
 //Gets the port number of this URL.
 PG_FUNCTION_INFO_V1(get_port);
@@ -443,8 +703,217 @@ get_protocol(PG_FUNCTION_ARGS)
   PG_RETURN_CSTRING(str);
 }
 
-// TODO: varchar getQuery() Gets the query part of this URL.
+// varchar getQuery() Gets the query part of this URL.
+PG_FUNCTION_INFO_V1(getQuery);
+Datum
+getQuery(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  char *url = (char * ) (&(url_buf->vl_dat));
+  url = (char *) pg_detoast_datum(url_buf);
+
+  regex_t reegex;
+  
+  int value = regcomp( &reegex,
+  //"([a-zA-Z0-9\\\^:./?#\\-]*)*(\\?([^#]*))?(#(.*))?"
+  "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?" //URL estandar
+  //"(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=\\-]+))?" //Jose
+   ,REG_EXTENDED); //"([a-zA-Z0-9\\\^:/?#\\-]*)*(\\?([^#]*))?(#(.*))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+  regmatch_t pmatch[10];
+	    /*
+	  5 expected matches from url:
+		      scheme    = $2
+		      authority = $4
+		      path      = $5
+		      query     = $7
+		      fragment  = $9
+
+	  */
+	  
+   value = regexec( &reegex, url, 10, pmatch, 0);
+	  
+	  // Extract the query
+   char *query;
+   char *str;
+
+  if (pmatch[7].rm_so == -1)
+  {
+    query = malloc(1);
+    memcpy(query, "", 1);
+    query = "No query found. Verify if the URL is written properly";
+  } else{
+    char *query_start = url + pmatch[7].rm_so;
+    size_t query_length = pmatch[7].rm_eo - pmatch[7].rm_so;
+    query = malloc(query_length + 1);
+    memset(query, 0, query_length + 1);
+    memcpy(query, query_start, query_length);
+
+  }
+
+  regfree(&reegex);
+  
+  str = psprintf("%s", query);
+  
+  PG_RETURN_CSTRING(str);
+}
+
+
+//Constructs a string representation of this URL.
+PG_FUNCTION_INFO_V1(toString);
+Datum
+getRef(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  char *url = (char * ) (&(url_buf->vl_dat));
+  url = (char *) pg_detoast_datum(url_buf);
+
+  regex_t reegex;
+  
+  int value = regcomp( &reegex,
+  //"([a-zA-Z0-9\\\^:./?#\\-]*)*(\\?([^#]*))?(#(.*))?"
+  "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?" //URL estandar
+  //"(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=\\-]+))?" //Jose
+   ,REG_EXTENDED); //"([a-zA-Z0-9\\\^:/?#\\-]*)*(\\?([^#]*))?(#(.*))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+  regmatch_t pmatch[10];
+	    /*
+	  5 expected matches from url:
+		      scheme    = $2
+		      authority = $4
+		      path      = $5
+		      query     = $7
+		      fragment  = $9
+
+	  */
+	  
+   value = regexec( &reegex, url, 10, pmatch, 0);
+	  
+	  // Extract the query
+   char *query;
+   char *str;
+
+  if (pmatch[9].rm_so == -1)
+  {
+    query = malloc(1);
+    memcpy(query, "", 1);
+    query = "No query found. Verify if the URL is written properly";
+  } else{
+    char *query_start = url + pmatch[9].rm_so;
+    size_t query_length = pmatch[9].rm_eo - pmatch[9].rm_so;
+    query = malloc(query_length + 1);
+    memset(query, 0, query_length + 1);
+    memcpy(query, query_start, query_length);
+
+  }
+
+  regfree(&reegex);
+  
+  str = psprintf("%s", query);
+  
+  PG_RETURN_CSTRING(str);
+}
+
 // TODO: String getRef() Gets the anchor (also known as the "reference") of this URL.
+// TODO: String getUserInfo() Gets the userInfo part of this URL.
+
+  regex_t reegex;
+  
+  //compare input to regex
+  int value = regcomp( &reegex,
+  "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?" //regex of URL estandar
+   ,REG_EXTENDED); 
+  regmatch_t pmatch[10];
+	    /*
+	   expected matches from url:
+		      scheme    = $2
+		      authority = $4
+		      path      = $5
+		      query     = $7
+		      fragment  = $9
+
+	  */
+	  
+   value = regexec( &reegex, url, 10, pmatch, 0);
+	  
+	  // Extract the query
+   char *query;
+   char *str;
+
+	//Assign match to variable 'query'
+  if (pmatch[7].rm_so == -1)
+  {
+    query = malloc(1);
+    memcpy(query, "", 1);
+    query = "No query found. Verify if the URL is written properly";
+  } else{
+    char *query_start = url + pmatch[7].rm_so;
+    size_t query_length = pmatch[7].rm_eo - pmatch[7].rm_so;
+    query = malloc(query_length + 1);
+    memset(query, 0, query_length + 1);
+    memcpy(query, query_start, query_length);
+
+  }
+
+  regfree(&reegex);
+  
+  str = psprintf("%s", query);
+  
+  PG_RETURN_CSTRING(str);
+}
+
+//String getRef() Gets the anchor (also known as the "reference") of this URL.
+PG_FUNCTION_INFO_V1(getRef);
+Datum
+getRef(PG_FUNCTION_ARGS)
+{
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  char *url = (char * ) (&(url_buf->vl_dat));
+  url = (char *) pg_detoast_datum(url_buf);
+
+  regex_t reegex;
+  
+  int value = regcomp( &reegex,
+  "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?" //regex of URL estandar
+   ,REG_EXTENDED); 
+  regmatch_t pmatch[10];
+	    /*
+	   expected matches from url:
+		      scheme    = $2
+		      authority = $4
+		      path      = $5
+		      query     = $7
+		      fragment  = $9
+
+	  */
+	  
+   value = regexec( &reegex, url, 10, pmatch, 0);
+	  
+	  // Extract the reference
+   char *ref;
+   char *str;
+
+//Assign match to variable 'ref'
+  if (pmatch[9].rm_so == -1)
+  {
+    ref = malloc(1);
+    memcpy(ref, "", 1);
+    ref = "No reference found. Verify if the URL is written properly";
+  } else{
+    char *ref_start = url + pmatch[9].rm_so;
+    size_t ref_length = pmatch[9].rm_eo - pmatch[9].rm_so;
+    ref = malloc(ref_length + 1);
+    memset(ref, 0, ref_length + 1);
+    memcpy(ref, ref_start, ref_length);
+
+  }
+
+  regfree(&reegex);
+  
+  str = psprintf("%s", ref);
+  
+  PG_RETURN_CSTRING(str);
+}
+
+// TODO: String getUserInfo() Gets the userInfo part of this URL.
 
 //Constructs a string representation of this URL.
 PG_FUNCTION_INFO_V1(toString);
