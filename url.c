@@ -12,6 +12,7 @@ PG_MODULE_MAGIC; //“magic block”  to ensure that a dynamically loaded object
 typedef struct pg_url{
   char vl_len_[4];
   int protocol_len;
+  int user_len;
   int host_len;
   int port;
   int file_len;
@@ -26,23 +27,25 @@ static int default_port(char *protocol){
   if (strcasecmp(protocol, "sftp") == 0) return 22;
   if (strcasecmp(protocol, "ssh") == 0) return 22;
   if (strcasecmp(protocol, "git") == 0) return 9418;
+  if (strcasecmp(protocol, "check") == 0) return 1;
   return -1;
 }
 
 
-static pg_url* create_url_from_fields(char *protocol, char *host, int port, char *file){ //Gather the url elements and return a pointer to the full url
+static pg_url* create_url_from_fields(char *protocol, char *user, char *host, int port, char *file){ //Gather the url elements and return a pointer to the full url
 	
   //Get size of components
   int32 prot_size = strlen(protocol);
+  int32 user_len = strlen(user);
   int32 host_size = strlen(host);
   int32 file_size = strlen(file);
   
 	
 //Declare pointer u and allocate it on memory 
-  pg_url *u = (pg_url *)palloc(VARHDRSZ + 5*4 + prot_size + host_size + file_size + 3);
+  pg_url *u = (pg_url *)palloc(VARHDRSZ + 5*5 + prot_size + user_len + host_size + file_size + 4);
 //All variable-length types must begin with an opaque length field of exactly 4 bytes. "VARHDRSZ is the same as sizeof(int4)
 //Set values on memory
-  SET_VARSIZE(u, VARHDRSZ + 5*4 + prot_size + host_size + file_size + 3);
+  SET_VARSIZE(u, VARHDRSZ + 5*5 + prot_size + user_len + host_size + file_size + 4);
 
   // set the protocol
   int offset;
@@ -65,6 +68,12 @@ static pg_url* create_url_from_fields(char *protocol, char *host, int port, char
   memset(u->data + offset, 0, file_size + 1); //Empty the next space 
   u->file_len = file_size + 1; // Get size
   memcpy(u->data + offset, file, file_size+1); // Write the host after the protocol [u->data = protocol + host + file]
+  offset += file_size + 1; //Update the position to point at the next space after file
+
+  // set the user
+  memset(u->data + offset, 0, user_len + 1); //Empty the next space
+  u->user_len = user_len + 1; // Get size
+  memcpy(u->data + offset, user, user_len+1); // Write the user at the end [u->data = protocol + host + file + user]
 
   return u;
 }
@@ -75,29 +84,33 @@ static pg_url* create_url_from_fields(char *protocol, char *host, int port, char
   * @param url the url to parse
   * @return a pg_url
   *
-  * TODO treat special cases
 */
 
 
 static pg_url* parse_url(char *url){ //Receive the url and split into its components
   regex_t reegex;
   // Creation of regEx
-	int value = regcomp( &reegex, "(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=]+))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
 
-  regmatch_t pmatch[9];
+  //                               protocol     :             user          : password         @         host         :  port     /  file
+	int value = regcomp( &reegex, "(([a-zA-Z0-9]+):\\/\\/)*((([a-zA-Z0-9\\._-]+(:[a-zA-Z0-9\\._-]+)?)@)?([a-zA-Z0-9\\._+-]+))(:([0-9]+))?(/([a-zA-Z0-9\\?_&#=]+))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+  regmatch_t pmatch[12];
     /*
-  9 expected matches from url:
-	  pmatch[0] =
-	  pmatch[1] =  
+  Expected matches from url:
+	  pmatch[0] = full thing
+	  pmatch[1] = protocol://
 	  pmatch[2] = protocol
-	  pmatch[3] = host
-	  pmatch[4] =
-	  pmatch[5] =
-	  pmatch[6] = port
-	  pmatch[8] = file
+    pmatch[3] = userinfo@host
+    pmatch[4] = userinfo@
+    pmatch[5] = userinfo
+    pmatch[6] = :password
+    pmatch[7] = host
+    pmatch[8] = :port
+    pmatch[9] = port
+    pmatch[10] = /file
+    pmatch[11] = file
   */
   
-  value = regexec( &reegex, url, 9, pmatch, 0);
+  value = regexec( &reegex, url, 12, pmatch, 0);
   
   
   // Extract the protocol
@@ -115,29 +128,43 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
     memcpy(protocol, protocol_start, protocol_length); // copies into 'protocol' the protocol received according to its size
   }
 
-  // Do the same with the host
-  char *host;
-  if (pmatch[3].rm_so == -1)
+  // Do the same with the userinfo
+  char *user;
+  if (pmatch[5].rm_so == -1)
   {
-    host = malloc(1);
+    user = palloc(1);
+    memcpy(user, "", 1);
+  } else{
+    char *user_start = url + pmatch[5].rm_so;
+    size_t user_length = pmatch[5].rm_eo - pmatch[5].rm_so;
+    user = palloc(user_length + 1);
+    memset(user, 0, user_length + 1);
+    memcpy(user, user_start, user_length);
+  }
+
+  // Do the same with the host
+  char *host; 
+  if (pmatch[7].rm_so == -1)
+  {
+    host = palloc(1);
     memcpy(host, "", 1);
   } else{
-    char *host_start = url + pmatch[3].rm_so;
-    size_t host_length = pmatch[3].rm_eo - pmatch[3].rm_so;
-    host = malloc(host_length + 1);
+    char *host_start = url + pmatch[7].rm_so;
+    size_t host_length = pmatch[7].rm_eo - pmatch[7].rm_so;
+    host = palloc(host_length + 1);
     memset(host, 0, host_length + 1);
     memcpy(host, host_start, host_length);
   }
 
   // Do the same with protocol (but this is integer)
   int port;
-  if (pmatch[6].rm_so == -1)
+  if (pmatch[9].rm_so == -1)
   {
     port = default_port(protocol);
   } else{
-    char *port_start = url + pmatch[6].rm_so;
-    size_t port_length = pmatch[6].rm_eo - pmatch[6].rm_so;
-    char *port_str = malloc(port_length + 1);
+    char *port_start = url + pmatch[9].rm_so;
+    size_t port_length = pmatch[9].rm_eo - pmatch[9].rm_so;
+    char *port_str = palloc(port_length + 1);
     memset(port_str, 0, port_length + 1);
     memcpy(port_str, port_start, port_length);
     port = atoi(port_str);
@@ -145,20 +172,20 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
 
   // Do the same with the file
   char *file;
-  if (pmatch[8].rm_so == -1)
+  if (pmatch[11].rm_so == -1)
   {
-    file = malloc(1);
+    file = palloc(1);
     memcpy(file, "", 1);
   } else{
-    char *file_start = url + pmatch[8].rm_so;
-    size_t file_length = pmatch[8].rm_eo - pmatch[8].rm_so;
-    file = malloc(file_length + 1);
+    char *file_start = url + pmatch[11].rm_so;
+    size_t file_length = pmatch[11].rm_eo - pmatch[11].rm_so;
+    file = palloc(file_length + 1);
     memset(file, 0, file_length + 1);
     memcpy(file, file_start, file_length);
   }
 
   // Create the url
-  pg_url *u = create_url_from_fields(protocol, host, port, file);
+  pg_url *u = create_url_from_fields(protocol, user, host, port, file);
 
   // Free the memory allocated to the pattern
   regfree(&reegex);
@@ -169,10 +196,11 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
 // For a given URL *u, return its string equivalent
 static char* internal_to_string(pg_url *u){
   int prot_size = u->protocol_len;
+  int user_size = u-> user_len;
   int host_size = u->host_len;
   int file_size = u->file_len;
-  char *str = palloc(prot_size + host_size + file_size + 10);
-  sprintf(str, "%s://%s:%d/%s", u->data, u->data + u->protocol_len, u->port, u->data + u->protocol_len + u->host_len); //Print URL's elements according to their position
+  char *str = palloc(prot_size + user_size + host_size + file_size + 11);
+  sprintf(str, "%s://%s@%s:%d/%s", u->data, u->data + u->protocol_len, u->data + u->protocol_len + u->host_len + u->file_len, u->port, u->data + u->protocol_len + u->host_len); //Print URL's elements according to their position
   return str;
 }
 
@@ -194,18 +222,20 @@ Datum url_out(PG_FUNCTION_ARGS) //Elaborate function url_out :
 
   // Get the sizes
   int prot_size = url->protocol_len;
+  int user_size = url->user_len;
   int host_size = url->host_len;
   int port = url->port;
   int file_size = url->file_len;
 
   // Allocate enough memory for the string
-  char *str = palloc(prot_size + host_size + file_size + 10);
+  char *str = palloc(prot_size + user_size +host_size + file_size + 11);
 
   // Get the different parts of the url
   char *protocol = url->data;
   char *host = url->data + prot_size;
   char *file = url->data + prot_size + host_size;
-  str = psprintf("%s://%s:%d/%s", protocol, host, port, file);
+  char *user = url->data + prot_size + host_size + file_size;
+  str = psprintf("%s://%s@%s:%d/%s", protocol, user, host, port, file);
   PG_RETURN_CSTRING(str);
 }
 /*
@@ -247,7 +277,7 @@ url_constructor_from_fields(PG_FUNCTION_ARGS)
   char *host = PG_GETARG_CSTRING(1);
   int port = PG_GETARG_INT32(2);
   char *file = PG_GETARG_CSTRING(3);
-  pg_url *url = create_url_from_fields(protocol, host, port, file);
+  pg_url *url = create_url_from_fields(protocol, "", host, port, file);
   PG_RETURN_POINTER(url);
 }
 
@@ -259,7 +289,7 @@ url_constructor_from_fields_default_port(PG_FUNCTION_ARGS)
   char *protocol = PG_GETARG_CSTRING(0);
   char *host = PG_GETARG_CSTRING(1);
   char *file = PG_GETARG_CSTRING(2);
-  pg_url *url = create_url_from_fields(protocol, host, default_port(protocol), file);
+  pg_url *url = create_url_from_fields(protocol, "", host, default_port(protocol), file);
   PG_RETURN_POINTER(url);
 }
 
@@ -289,8 +319,8 @@ url_constructor_from_text(PG_FUNCTION_ARGS)
 
 // ---- Methods
 
-// TODO: varchar getAuthority() : Gets the authority part of this URL.
-// TODO: int getDefaultPort(): Gets the default port number of the protocol associated with this URL.
+// TODO: include user in getAuthority() : Gets the authority part of this URL.
+// Gets the default port number of the protocol associated with this URL.
 PG_FUNCTION_INFO_V1(get_default_port);
 Datum
 get_default_port(PG_FUNCTION_ARGS)
@@ -322,6 +352,32 @@ get_file(PG_FUNCTION_ARGS)
   // Get the file
   char *file = url->data + prot_size + host_size;
   str = psprintf("%s", file);
+  PG_RETURN_CSTRING(str);
+}
+
+//Gets the userinfo
+PG_FUNCTION_INFO_V1(get_userinfo);
+Datum
+get_userinfo(PG_FUNCTION_ARGS)
+{
+ struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
+
+  // Get the sizes
+  int prot_size = url->protocol_len;
+  int user_len = url->user_len;
+  int host_size = url->host_len;
+  int file_size = url->file_len;
+
+  // Allocate enough memory for the string
+  char *str = palloc(user_len);
+
+  // Get the userinfo
+  char *user = url->data + prot_size + host_size + file_size;
+  
+  str = psprintf("%s", user);
+
   PG_RETURN_CSTRING(str);
 }
 
@@ -389,8 +445,6 @@ get_protocol(PG_FUNCTION_ARGS)
 
 // TODO: varchar getQuery() Gets the query part of this URL.
 // TODO: String getRef() Gets the anchor (also known as the "reference") of this URL.
-// TODO: String getUserInfo() Gets the userInfo part of this URL.
-
 
 //Constructs a string representation of this URL.
 PG_FUNCTION_INFO_V1(toString);
@@ -420,9 +474,6 @@ toString(PG_FUNCTION_ARGS)
 
 // ---- URLs functions supported by INDEXING
 
-// TODO: boolean sameFile(URL url1, URL url2) : Compares two URLs, excluding the fragment component.This operation must be index-supported.
-// TODO: boolean sameHost(URL url1, URL url2) : Compares the hosts of two URLs. This operation must be index-supported.
-
 /* pg_url_cmp: compares two url
 * returns -1 if url1 < url2
 * returns 0 if url1 == url2
@@ -446,7 +497,6 @@ pg_url_cmp(PG_FUNCTION_ARGS)
 
   // Compare the strings
   int result = strcmp(str1, str2);
-  elog(INFO, "str1: %s, str2: %s", str1, str2);
   /*
   strcmp Returns:	Scenario:
   0			if strings are equal		
@@ -506,7 +556,6 @@ same_host(PG_FUNCTION_ARGS)
   struct varlena* url_buf2 = (struct varlena*) PG_GETARG_VARLENA_P(1);
   pg_url *url2 = (struct pg_url*)(&(url_buf2->vl_dat));
   url2 = (pg_url *) pg_detoast_datum(url_buf2);
-  elog(INFO, "here");
   //Compare components
   bool result = (url1->host_len == url2->host_len);
   

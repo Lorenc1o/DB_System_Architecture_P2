@@ -49,6 +49,11 @@ RETURNS pg_url
 AS '$libdir/url', 'url_constructor_from_text'
 LANGUAGE C IMMUTABLE STRICT;
 
+CREATE OR REPLACE FUNCTION get_userinfo(pg_url)
+RETURNS cstring
+AS '$libdir/url', 'get_userinfo'
+LANGUAGE C IMMUTABLE STRICT;
+
 CREATE OR REPLACE FUNCTION get_host(pg_url)
 RETURNS cstring
 AS '$libdir/url', 'get_host'
