@@ -83,12 +83,36 @@ static pg_url* create_url_from_fields(char *protocol, char *host, int port, char
 static pg_url* parse_url(char *url){ //Receive the url and split into its components
   regex_t reegex;
   // Creation of regEx
-	int value = regcomp( &reegex, "(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=\\-]+))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+	int value = regcomp( &reegex, 
+	//"(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=\\-]+))?"
+	"(([a-zA-Z0-9]+):\\/\\/)?((a-zA-Z0-9.+-):?(a-zZ-Z0-9.+-)?@)?((www.)?[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)?)(:([0-9]+))?(/([a-zA-Z0-9\\?_&#=]+))?"
+	, REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
 	
 	
 
-  regmatch_t pmatch[9];
-    /*
+  /*
+    
+  12 expected matches from url:
+	  pmatch[0] =
+	  pmatch[1] =  
+	  pmatch[2] = protocol
+	  pmatch[3] = user host
+	  pmatch[4] =user
+	  pmatch[5] =password
+	  pmatch[6] = host
+	  pmatch[7] = www.x...
+	  pmatch[8] = www.
+	  pmatch[10] = port
+	  pmatch[11] = file
+  
+  
+  
+  */
+  
+  regmatch_t pmatch[12];
+  value = regexec( &reegex, url, 12, pmatch, 0);
+    
+  /*regmatch_t pmatch[9];
   9 expected matches from url:
 	  pmatch[0] =
 	  pmatch[1] =  
@@ -98,9 +122,10 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
 	  pmatch[5] =
 	  pmatch[6] = port
 	  pmatch[8] = file
+    value = regexec( &reegex, url, 9, pmatch, 0);
   */
   
-  value = regexec( &reegex, url, 9, pmatch, 0);
+  
   
   
   // Extract the protocol
@@ -120,13 +145,13 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
 
   // Do the same with the host
   char *host;
-  if (pmatch[3].rm_so == -1)
+  if (pmatch[6].rm_so == -1)
   {
     host = malloc(1);
     memcpy(host, "", 1);
   } else{
-    char *host_start = url + pmatch[3].rm_so;
-    size_t host_length = pmatch[3].rm_eo - pmatch[3].rm_so;
+    char *host_start = url + pmatch[6].rm_so;
+    size_t host_length = pmatch[6].rm_eo - pmatch[6].rm_so;
     host = malloc(host_length + 1);
     memset(host, 0, host_length + 1);
     memcpy(host, host_start, host_length);
@@ -134,12 +159,12 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
 
   // Do the same with protocol (but this is integer)
   int port;
-  if (pmatch[6].rm_so == -1)
+  if (pmatch[10].rm_so == -1)
   {
     port = default_port(protocol);
   } else{
-    char *port_start = url + pmatch[6].rm_so;
-    size_t port_length = pmatch[6].rm_eo - pmatch[6].rm_so;
+    char *port_start = url + pmatch[10].rm_so;
+    size_t port_length = pmatch[10].rm_eo - pmatch[10].rm_so;
     char *port_str = malloc(port_length + 1);
     memset(port_str, 0, port_length + 1);
     memcpy(port_str, port_start, port_length);
@@ -148,13 +173,13 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
 
   // Do the same with the file
   char *file;
-  if (pmatch[8].rm_so == -1)
+  if (pmatch[11].rm_so == -1)
   {
     file = malloc(1);
     memcpy(file, "", 1);
   } else{
-    char *file_start = url + pmatch[8].rm_so;
-    size_t file_length = pmatch[8].rm_eo - pmatch[8].rm_so;
+    char *file_start = url + pmatch[11].rm_so;
+    size_t file_length = pmatch[11].rm_eo - pmatch[11].rm_so;
     file = malloc(file_length + 1);
     memset(file, 0, file_length + 1);
     memcpy(file, file_start, file_length);
@@ -292,9 +317,6 @@ PG_FUNCTION_INFO_V1(url_constructor_context_spec);
 Datum
 url_constructor_context_spec(PG_FUNCTION_ARGS)
 {
-  //URL Generic syntax considered: <scheme>://<authority><path>?<query>#<fragment>
- 
-   
   //Get URL context
   struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
   pg_url *url = (pg_url *)(&(url_buf->vl_dat));
@@ -307,35 +329,14 @@ url_constructor_context_spec(PG_FUNCTION_ARGS)
   char *spec_strng = PG_GETARG_CSTRING(1);
   //Cast spec into pg_url
   pg_url *spec_url = parse_url(spec_strng);
-  
-  //Regex to split spec
-  regex_t spec_reegex;
-  
-  //compare spec_url to regex
-  int value = regcomp( &spec_reegex,
-  "(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([a-zA-Z^#]*))?(#(.*))?" 
-   ,REG_EXTENDED); 
-  regmatch_t spec_pmatch[10];
-	    
-	  /*  expected matches from url:
-		      scheme    = $2
-		      authority = $4
-		      path      = $5
-		      query     = $7
-		      fragment  = $9
-	  */
-	  
-   value = regexec( &spec_reegex, spec_url, 10, spec_pmatch, 0);
-   regfree(&spec_reegex);
    
-
-   char *spec_path;
-   char *str_result;
 
    //Spec data
    int spec_prot_size = spec_url->protocol_len;
    int spec_host_size = spec_url->host_len;
    int spec_file_size = spec_url->file_len;
+
+   char *spec_path;
    
    
    //Context data
@@ -345,24 +346,41 @@ url_constructor_context_spec(PG_FUNCTION_ARGS)
   
    char *context_scheme = url->data;
    char *spec_scheme = spec_url -> data;
-   
-   
-	if (spec_pmatch[2].rm_so != -1 && context_scheme != spec_scheme)//If spec has scheme and does not match the scheme of the context, then the new URL is created as an absolute URL based on the spec alone.
-	  {
-		   //TODO: Fix - This condition is never happening
-		   
-		   PG_RETURN_POINTER(spec_url);
-	  
-	  } else{ //If spec has no scheme, the scheme component is inherited from the context URL.
-	   	   char *result_scheme= "";
+
+   //result variables
+       char *str_result;
+       char *result_scheme= "";
 		   char *result_authority= "";
-		   char *result_host= "";
+		   char *result_host= "h";
 		   int result_port;
-		   char *result_path= "";
+		   char *result_path= "p";
 		   char *result_query= "q";
 		   char *result_file= "";
 		   char *result_fragment= "f";
-		   
+
+       //Regex to split spec
+    regex_t spec_reegex;
+    
+    //compare spec_url to regex
+    int value = regcomp( &spec_reegex,
+    //   <scheme>       ://   <authority>   /<path>    ? <query>          #<fragment>
+    "(([a-zA-Z0-9^/?#]+)://)?(([^/?#]*))?(\\/[^?#]*)?(\\?([a-zA-Z0-9^#]*))?(#(.*))?" 
+    ,REG_EXTENDED); 
+    regmatch_t spec_pmatch[10];
+
+      //URL Generic syntax considered: 
+      /*  expected matches from url:
+            scheme    = $2
+            authority = $4
+            path      = $5
+            query     = $7
+            fragment  = $9
+      */
+      
+    value = regexec( &spec_reegex, spec_url, 10, spec_pmatch, 0);
+   
+	if (spec_pmatch[2].rm_so == -1)//If spec has no scheme, the scheme component is inherited from the context URL.
+  {
 		   //--Get Context Protocol (aka Schema)
 		   result_scheme = context_scheme;
 		   //str_result = strcat(str_result, context_scheme);
@@ -441,6 +459,7 @@ url_constructor_context_spec(PG_FUNCTION_ARGS)
 	   
 		    	result_file= psprintf("%s?%s#%s", result_path, result_query, result_fragment);
 		  } else{ //If spec has authority, then the spec authority and path will replace the context authority and path. 
+
 		  //TODO: Fix -- Never entering this condition
 		    char *result_authority_start = spec_url + spec_pmatch[4].rm_so;
 		    size_t spec_authority_length = spec_pmatch[4].rm_eo - spec_pmatch[4].rm_so;
@@ -451,16 +470,18 @@ url_constructor_context_spec(PG_FUNCTION_ARGS)
 		    // Get the protocol, host and the port
 			  result_host = spec_url->data + spec_prot_size;
 			  result_port = spec_url->port;
-			  
-	           //Build the Authority
-			  //result_authority = psprintf("%s:%d", result_host, result_port);
-	
 		  }
-
 	    
 	    resulting_url = create_url_from_fields(result_scheme, result_host, result_port, result_file);
+
+	  
+	  } else{ //If spec has scheme ---> then the new URL is created as an absolute URL based on the spec alone.
+
+      //TODO: Fix - This condition is never happening
+		   resulting_url=spec_url;
 	    }
   
+  regfree(&spec_reegex);
   PG_RETURN_POINTER(resulting_url); //(resulting_url);
 }
 

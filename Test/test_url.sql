@@ -12,7 +12,7 @@ insert into test_url values (3, 'https://www.test.com');
 insert into test_url values (4, pg_url('ftp://www.test.com/file?param1=1&param2=2'));
 insert into test_url values (5, pg_url('http','example.com',80,'file'));
 insert into test_url values (6, pg_url('ftp','example.com','file'));
-*/
+
 -- -->> Constructor context spec
 -- Exchanging each element
 insert into test_url values (18, pg_url('fttp://www.test.com/file?param1=1&param2=2#contextRef','http://'));
@@ -22,11 +22,12 @@ insert into test_url values (48, pg_url('fttp://www.test.com/file?param1=1&param
 insert into test_url values (58, pg_url('fttp://www.test.com/file?param1=1&param2=2#contextRef','?query=testing&spec=2'));
 insert into test_url values (68, pg_url('fttp://www.test.com/file?param1=1&param2=2#contextRef','#specRef'));
 insert into test_url values (78, pg_url('http://www.test.com/filecontext/context?param1=1&param2=2#ref','ftp://www.spec.com/filespec/spec?specQ#ref')); 
-
+*/
 --If spec has no scheme, the scheme component is inherited from the context URL.
 insert into test_url values (71, pg_url('http://www.test.com/filecontext/context?param1=1&param2=2#ref','www.spec.com/filespec/spec?specQ#ref')); 
 insert into test_url values (82, pg_url('fttp://www.test.com/file?param1=1&param2=2','http://www.spec.com/')); --F
 
+select * from test_url;
 --TODO: The reference is parsed into the scheme, authority, path, query and fragment parts. If the path component is empty and the scheme, authority, and query components are undefined, then the new URL is a reference to the current document. Otherwise, the fragment and query parts present in the spec are used in the new URL.
 
 insert into test_url values (17, pg_url('http://www.test.com/filecontext/context?param1=1&param2=2#ref','#ref')); 
@@ -58,6 +59,9 @@ insert into test_url values (16, pg_url('ftp://www.test.com/filecontext/con','?p
 insert into test_url values (17, pg_url('http://www.test.com/filecontext/context?param1=1&param2=2#ref','moimo/kjoil=moi'));
 insert into test_url values (18, pg_url('ftp://www.test.com/filecontext/con','param1=1&param2=2'));
 insert into test_url values (19, pg_url('ftp://www.test.com/filecontext/con','#specRef'));
+
+
+
 
 -- --> Functions testing
 select * from test_url;
