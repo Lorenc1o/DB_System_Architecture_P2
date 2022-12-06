@@ -98,6 +98,39 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
   Expected matches from url:
 	  pmatch[0] = full thing
 	  pmatch[1] = protocol://
+	int value = regcomp( &reegex, 
+	//"(([a-zA-Z0-9]+):\\/\\/)*((www.)?[a-zA-Z0-9]+\\.[a-zA-Z0-9]*)(:([0-9]+))?(/([a-zA-Z0-9\\?_&=\\-]+))?"
+	"(([a-zA-Z0-9]+):\\/\\/)?((a-zA-Z0-9.+-):?(a-zZ-Z0-9.+-)?@)?((www.)?[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)?)(:([0-9]+))?(/([a-zA-Z0-9\\?_&#=]+))?"
+	, REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+	
+	
+
+  /*
+    
+  12 expected matches from url:
+	  pmatch[0] =
+	  pmatch[1] =  
+	  pmatch[2] = protocol
+	  pmatch[3] = user host
+	  pmatch[4] =user
+	  pmatch[5] =password
+	  pmatch[6] = host
+	  pmatch[7] = www.x...
+	  pmatch[8] = www.
+	  pmatch[10] = port
+	  pmatch[11] = file
+  
+  
+  
+  */
+  
+  regmatch_t pmatch[12];
+  value = regexec( &reegex, url, 12, pmatch, 0);
+    
+  /*regmatch_t pmatch[9];
+  9 expected matches from url:
+	  pmatch[0] =
+	  pmatch[1] =  
 	  pmatch[2] = protocol
     pmatch[3] = userinfo@host
     pmatch[4] = userinfo@
@@ -111,6 +144,7 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
   */
   
   value = regexec( &reegex, url, 12, pmatch, 0);
+  
   
   
   // Extract the protocol
@@ -319,9 +353,6 @@ PG_FUNCTION_INFO_V1(url_constructor_context_spec);
 Datum
 url_constructor_context_spec(PG_FUNCTION_ARGS)
 {
-  //URL Generic syntax considered: <scheme>://<authority><path>?<query>#<fragment>
- 
-   
   //Get URL context
   struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
   pg_url *url = (pg_url *)(&(url_buf->vl_dat));
