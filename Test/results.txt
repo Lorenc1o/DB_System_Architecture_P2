@@ -1,0 +1,19 @@
+--Exchanging each element:
+0: https:
+1: http://www.test.com/www.spec.com
+2: http://www.spec.com/
+3: http://www.test.com/filespec/spec/spec2/
+4: http://www.test.com/?query=testing&spec=2
+5: http://www.test.com/file?param1=1&param2=2#specRef
+6: http://www.test.com/filecontext/?query=testing&spec=2
+--If spec has no scheme, the scheme component is inherited from the context URL.:
+0: http://www.test.com/filecontext/www.spec.com/filespec/spec?specQ#ref
+1: http://www.spec.com/
+--TODO: The reference is parsed into the scheme, authority, path, query and fragment parts. If the path component is empty and the scheme, authority, and query components are undefined, then the new URL is a reference to the current document. Otherwise, the fragment and query parts present in the spec are used in the new URL.:
+0: http://www.test.com/filecontext/context?param1=1&param2=2#ref
+1: http://www.test.com/filecontext/context?param1=1&param2=2#ref
+2: http://www.test.com/filecontext/?query=testing&spec=2#specRef
+--If the scheme component is defined in the given spec and does not match the scheme of the context, then the new URL is created as an absolute URL based on the spec alone. Otherwise the scheme component is inherited from the context URL:
+0: http://www.spec.com/
+1: ftp://www.spec.com/
+2: http://www.test.com/filecontext/?query=testing&spec=2#specRef
