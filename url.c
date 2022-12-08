@@ -92,9 +92,9 @@ static pg_url* parse_url(char *url){ //Receive the url and split into its compon
   regex_t reegex;
   // Creation of regEx
   //                               protocol     :             user          : password         @         host         :  port     /  file
-	int value = regcomp( &reegex, "(([a-zA-Z0-9]+):\\/\\/)*((([a-zA-Z0-9\\._-]+(:[a-zA-Z0-9\\._-]+)?)@)?([a-zA-Z0-9\\._+-]+))(:([0-9]+))?(/([a-zA-Z0-9\\?_&#=]+))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
+	int value = regcomp( &reegex, "(([a-zA-Z0-9]+):\\/\\/)*((([a-zA-Z0-9\\._-]+(:[a-zA-Z0-9\\._-]+)?)@)?([a-zA-Z0-9\\._+-]+))(:([0-9]+))?(/(.+))?", REG_EXTENDED);  //If the regcomp() function is successful, it returns 0
   regmatch_t pmatch[12];
-    /*
+  /*
   Expected matches from url:
 	  pmatch[0] = full thing
 	  pmatch[1] = protocol://
@@ -234,8 +234,11 @@ static char* internal_to_string(pg_url *u){
   int host_size = u->host_len;
   int file_size = u->file_len;
   char *str = palloc(prot_size + user_size + host_size + file_size + 11);
-  sprintf(str, "%s://%s@%s:%d/%s", u->data, u->data + u->protocol_len, u->data + u->protocol_len + u->host_len + u->file_len, u->port, u->data + u->protocol_len + u->host_len); //Print URL's elements according to their position
-  return str;
+  // If there is no user, we don't print it
+  if (user_size == 1)
+    sprintf(str, "%s://%s:%d/%s", u->data, u->data + u->protocol_len, u->port, u->data + u->protocol_len + u->host_len);
+  else
+    sprintf(str, "%s://%s@%s:%d/%s", u->data, u->data + u->protocol_len + u->host_len + u->file_len, u->data + u->protocol_len, u->port, u->data + u->protocol_len + u->host_len); //Print URL's elements according to their position  return str;
 }
 
 PG_FUNCTION_INFO_V1(url_in); //Declare Postgres function
@@ -335,6 +338,31 @@ url_constructor_from_string(PG_FUNCTION_ARGS)
   char *str = PG_GETARG_CSTRING(0);
   pg_url *url = parse_url(str);
   PG_RETURN_POINTER(url);
+}
+
+//Constructor URL(URL context, String spec)
+PG_FUNCTION_INFO_V1(url_constructor_context_spec);
+Datum
+url_constructor_context_spec(PG_FUNCTION_ARGS)
+{
+  //Get URL context
+  struct varlena* url_buf = (struct varlena*) PG_GETARG_VARLENA_P(0);
+  pg_url *url = (pg_url *)(&(url_buf->vl_dat));
+  url = (pg_url *) pg_detoast_datum(url_buf);
+  
+  //Get URL spec
+  char *spec_str = PG_GETARG_CSTRING(1);
+
+  char *context_str = internal_to_string(url);
+  int context_len = strlen(context_str);
+  int spec_len = strlen(spec_str);
+  int full_len = context_len+spec_len+1;
+  char *full_str = palloc(full_len);
+  memset(full_str, 0, full_len);
+  memcpy(full_str, context_str, context_len);
+  memcpy(full_str+context_len, spec_str, spec_len);
+  elog(INFO, "full_str: %s", full_str);
+  PG_RETURN_POINTER(parse_url(full_str));
 }
 
 // Constructor URL(varchar spec) but receives text instead of cstring

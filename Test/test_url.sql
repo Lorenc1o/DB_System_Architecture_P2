@@ -61,6 +61,8 @@ insert into test_url values (18, pg_url('ftp://www.test.com/filecontext/con','pa
 insert into test_url values (19, pg_url('ftp://www.test.com/filecontext/con','#specRef'));
 insert into test_url values (7, 'https://user1:pwd1@www.test.com');
 insert into test_url values (8, 'https://user2@www.test.com');
+insert into test_url values (9, pg_url('https://www.test.com', 'file1'));
+insert into test_url values (10, pg_url('https://www.test.com', 'www.test2.com/file2'));
 
 -- -->> Constructor context spec
 -- Exchanging each element
