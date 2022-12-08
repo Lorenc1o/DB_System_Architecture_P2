@@ -21,14 +21,11 @@ insert into test_url values (5, pg_url('http','example.com',80,'file'));
 INSERT 0 1
 insert into test_url values (6, pg_url('ftp','example.com','file'));
 INSERT 0 1
-insert into test_url values (7, 'https://user1:pwd1@www.test.com');
+insert into test_url values (7, pg_url('http://ulb.be', '/file'));
 INSERT 0 1
-insert into test_url values (8, 'https://user2@www.test.com');
+insert into test_url values (7, pg_url('http://ulb.be', 'www.file.com/file2'));
 INSERT 0 1
-insert into test_url values (9, pg_url('https://www.test.com', 'file1'));
-INSERT 0 1
-insert into test_url values (10, pg_url('https://www.test.com', 'www.test2.com/file2'));
-INSERT 0 1
+-- --> Functions testing
 select * from test_url;
  id |                       u                       
 ----+-----------------------------------------------
@@ -38,11 +35,9 @@ select * from test_url;
   4 | ftp://@www.test.com:21/file?param1=1&param2=2
   5 | http://@example.com:80/file
   6 | ftp://@example.com:21/file
-  7 | https://user1:pwd1@www.test.com:443/
-  8 | https://user2@www.test.com:443/
-  9 | https://@www.test.com:443/file1
- 10 | https://@www.test.com:443/www.test2.com/file2
-(10 rows)
+  7 | http://@ulb.be:80//file
+  7 | http://@ulb.be:80/www.file.com/file2
+(8 rows)
 
 select id, get_host(u) from test_url;
  id |   get_host   
@@ -53,11 +48,9 @@ select id, get_host(u) from test_url;
   4 | www.test.com
   5 | example.com
   6 | example.com
-  7 | www.test.com
-  8 | www.test.com
-  9 | www.test.com
- 10 | www.test.com
-(10 rows)
+  7 | ulb.be
+  7 | ulb.be
+(8 rows)
 
 select id, get_port(u) from test_url;
  id | get_port 
@@ -68,11 +61,9 @@ select id, get_port(u) from test_url;
   4 |       21
   5 |       80
   6 |       21
-  7 |      443
-  8 |      443
-  9 |      443
- 10 |      443
-(10 rows)
+  7 |       80
+  7 |       80
+(8 rows)
 
 select id, get_protocol(u) from test_url;
  id | get_protocol 
@@ -83,11 +74,9 @@ select id, get_protocol(u) from test_url;
   4 | ftp
   5 | http
   6 | ftp
-  7 | https
-  8 | https
-  9 | https
- 10 | https
-(10 rows)
+  7 | http
+  7 | http
+(8 rows)
 
 select id, get_file(u) from test_url;
  id |        get_file        
@@ -98,11 +87,9 @@ select id, get_file(u) from test_url;
   4 | file?param1=1&param2=2
   5 | file
   6 | file
-  7 | 
-  8 | 
-  9 | file1
- 10 | www.test2.com/file2
-(10 rows)
+  7 | /file
+  7 | www.file.com/file2
+(8 rows)
 
 select id, get_userinfo(u) from test_url;
  id | get_userinfo 
@@ -113,12 +100,27 @@ select id, get_userinfo(u) from test_url;
   4 | 
   5 | 
   6 | 
-  7 | user1:pwd1
-  8 | user2
-  9 | 
- 10 | 
-(10 rows)
+  7 | 
+  7 | 
+(8 rows)
 
+select id, get_default_port(u) from test_url;
+ id | get_default_port 
+----+------------------
+  1 |               80
+  2 |               80
+  3 |               80
+  4 |               21
+  5 |               80
+  6 |               21
+  7 |               80
+  7 |               80
+(8 rows)
+
+select id, getAuthority(u) from test_url;
+select id, getPath(u) from test_url;
+select id, getQuery(u) from test_url;
+select id, getRef(u) from test_url;
 drop table if exists test_equals;
 DROP TABLE
 create table test_equals (id int, u1 pg_url, u2 pg_url);
@@ -209,32 +211,32 @@ SET
 explain select * from test_url where u = 'test.es';
                                  QUERY PLAN                                 
 ----------------------------------------------------------------------------
- Index Scan using test_url_u on test_url  (cost=0.14..8.15 rows=1 width=36)
+ Index Scan using test_url_u on test_url  (cost=0.13..8.15 rows=1 width=36)
    Index Cond: (u = 'http://@test.es:80/'::pg_url)
 (2 rows)
 
 explain select * from test_url where same_host(u,'test.es');
                                  QUERY PLAN                                 
 ----------------------------------------------------------------------------
- Index Scan using test_url_u on test_url  (cost=0.14..8.15 rows=1 width=36)
+ Index Scan using test_url_u on test_url  (cost=0.13..8.15 rows=1 width=36)
    Index Cond: (u = 'http://@test.es:80/'::pg_url)
 (2 rows)
 
 explain select same_host(u,'test.es') from test_url;
-                                    QUERY PLAN                                    
-----------------------------------------------------------------------------------
- Index Only Scan using test_url_u on test_url  (cost=0.14..12.31 rows=10 width=1)
+                                   QUERY PLAN                                    
+---------------------------------------------------------------------------------
+ Index Only Scan using test_url_u on test_url  (cost=0.13..12.27 rows=8 width=1)
 (1 row)
 
 explain select same_file(u,'test.es') from test_url;
-                                    QUERY PLAN                                    
-----------------------------------------------------------------------------------
- Index Only Scan using test_url_u on test_url  (cost=0.14..14.79 rows=10 width=1)
+                                   QUERY PLAN                                    
+---------------------------------------------------------------------------------
+ Index Only Scan using test_url_u on test_url  (cost=0.13..14.25 rows=8 width=1)
 (1 row)
 
 explain select pg_url_equals(u,'test.es') from test_url;
-                                    QUERY PLAN                                    
-----------------------------------------------------------------------------------
- Index Only Scan using test_url_u on test_url  (cost=0.14..14.79 rows=10 width=1)
+                                   QUERY PLAN                                    
+---------------------------------------------------------------------------------
+ Index Only Scan using test_url_u on test_url  (cost=0.13..14.25 rows=8 width=1)
 (1 row)
 
