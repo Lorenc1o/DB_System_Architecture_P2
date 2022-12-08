@@ -11,16 +11,6 @@ CREATE OR REPLACE FUNCTION url_out(pg_url)
     AS '$libdir/url', 'url_out'
     LANGUAGE C IMMUTABLE STRICT;
 
---CREATE OR REPLACE FUNCTION url_recv(internal)
---    RETURNS pg_url
---    AS '$libdir/url', 'url_recv'
---    LANGUAGE C IMMUTABLE STRICT;
-
---CREATE OR REPLACE FUNCTION url_send(url)
---    RETURNS bytea
---    AS '$libdir/url', 'url_send'
---    LANGUAGE C IMMUTABLE STRICT;
-
 CREATE TYPE pg_url (
     INPUT = url_in,
     OUTPUT = url_out

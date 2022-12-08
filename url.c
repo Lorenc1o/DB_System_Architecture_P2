@@ -275,33 +275,6 @@ Datum url_out(PG_FUNCTION_ARGS) //Elaborate function url_out :
   str = psprintf("%s://%s@%s:%d/%s", protocol, user, host, port, file);
   PG_RETURN_CSTRING(str);
 }
-/*
-PG_FUNCTION_INFO_V1(url_recv);
-Datum
-url_rcv(PG_FUNCTION_ARGS)
-{
-  StringInfo buf = (StringInfo) PG_GETARG_POINTER(0);
-  pg_url *url = (pg_url *) palloc(VARHDRSZ + buf->len);
-  SET_VARSIZE(url, VARHDRSZ + buf->len);
-  memcpy(url->data, buf->data, buf->len);
-  PG_RETURN_POINTER(url);
-}
-
-PG_FUNCTION_INFO_V1(url_send);
-Datum
-url_send(PG_FUNCTION_ARGS)
-{
-  pg_url *url = (pg_url *) PG_GETARG_POINTER(0);
-  StringInfoData buf;
-  pq_begintypsend(&buf);
-  pq_sendint(&buf, url->protocol_len, 4);
-  pq_sendint(&buf, url->host_len, 4);
-  pq_sendint(&buf, url->port, 4);
-  pq_sendint(&buf, url->file_len, 4);
-  pq_sendbytes(&buf, url->data, url->protocol_len + url->host_len + url->file_len);
-  PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
-}*/
-
 
 // ---- Constructors
 
