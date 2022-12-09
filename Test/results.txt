@@ -7,380 +7,234 @@ CREATE EXTENSION
 --
 drop table if exists test_url;
 DROP TABLE
-create table test_url (id int, u pg_url);
+create table test_url (u pg_url);
 CREATE TABLE
-insert into test_url values (1, 'http://www.test.com:80/file');
+-- Test the different constructors and introduce different cases to test the getters
+-- URL(String spec)
+insert into test_url values ('http://www.test.com:80/file');
 INSERT 0 1
-insert into test_url values (2, 'test.es');
+insert into test_url values ('test.es');
 INSERT 0 1
-insert into test_url values (3, 'http://www.test.com');
+insert into test_url values ('http://www.test.com');
 INSERT 0 1
-insert into test_url values (4, pg_url('ftp://www.test.com/file2?param1=1&param2=2'));
+insert into test_url values (pg_url('ftp://www.test.com/file2?param1=1&param2=2'));
 INSERT 0 1
-insert into test_url values (5, pg_url('http','example.com',80,'file3'));
+insert into test_url values ('https://user1:pwd1@www.test.com');
 INSERT 0 1
-insert into test_url values (6, pg_url('ftp','example.com','dir1/file4?param3=3#ref1'));
+insert into test_url values ('https://user2@www.test.com');
 INSERT 0 1
-insert into test_url values (7, 'https://user1:pwd1@www.test.com');
+insert into test_url values ('ftp://www.test.com/file');
 INSERT 0 1
-insert into test_url values (8, 'https://user2@www.test.com');
+-- URL(String protocol, String host, int port, String file)
+insert into test_url values (pg_url('http','example.com',80,'file3'));
 INSERT 0 1
-insert into test_url values (9, pg_url('example.com', '/dir2/file5#ref2'));
+-- URL(String protocol, String host, String file)
+insert into test_url values (pg_url('ftp','example.com','dir1/file4?param3=3#ref1'));
 INSERT 0 1
-insert into test_url values (10, pg_url('example.com', 'www.file6.be'));
+-- URL(URL context, String spec)
+insert into test_url values (pg_url('example.com', '/dir2/file5#ref2'));
 INSERT 0 1
+insert into test_url values (pg_url('example.com', 'www.file6.be'));
+INSERT 0 1
+-- Test the different getters
 select * from test_url;
- id |                       u                       
-----+-----------------------------------------------
-  1 | http://www.test.com:80/file
-  2 | http://test.es:80/
-  3 | http://www.test.com:80/
-  4 | ftp://www.test.com:21/file2?param1=1&param2=2
-  5 | http://example.com:80/file3
-  6 | ftp://example.com:21/dir1/file4?param3=3#ref1
-  7 | https://user1:pwd1@www.test.com:443/
-  8 | https://user2@www.test.com:443/
-  9 | http://example.com:80//dir2/file5#ref2
- 10 | http://example.com:80/www.file6.be
-(10 rows)
+                       u                       
+-----------------------------------------------
+ http://www.test.com:80/file
+ http://test.es:80/
+ http://www.test.com:80/
+ ftp://www.test.com:21/file2?param1=1&param2=2
+ https://user1:pwd1@www.test.com:443/
+ https://user2@www.test.com:443/
+ ftp://www.test.com:21/file
+ http://example.com:80/file3
+ ftp://example.com:21/dir1/file4?param3=3#ref1
+ http://example.com:80//dir2/file5#ref2
+ http://example.com:80/www.file6.be
+(11 rows)
 
-select id, get_authority(u) from test_url;
- id |      get_authority      
-----+-------------------------
-  1 | @www.test.com
-  2 | @test.es
-  3 | @www.test.com
-  4 | @www.test.com
-  5 | @example.com
-  6 | @example.com
-  7 | user1:pwd1@www.test.com
-  8 | user2@www.test.com
-  9 | @example.com
- 10 | @example.com
-(10 rows)
+select u, get_protocol(u), get_authority(u), get_userinfo(u), get_host(u), get_port(u), get_default_port(u), get_file(u), get_path(u), get_query(u), get_ref(u) from test_url;
+                       u                       | get_protocol |      get_authority      | get_userinfo |   get_host   | get_port | get_default_port |         get_file         |   get_path   |     get_query     | get_ref 
+-----------------------------------------------+--------------+-------------------------+--------------+--------------+----------+------------------+--------------------------+--------------+-------------------+---------
+ http://www.test.com:80/file                   | http         | @www.test.com           |              | www.test.com |       80 |               80 | file                     | file         |                   | 
+ http://test.es:80/                            | http         | @test.es                |              | test.es      |       80 |               80 |                          |              |                   | 
+ http://www.test.com:80/                       | http         | @www.test.com           |              | www.test.com |       80 |               80 |                          |              |                   | 
+ ftp://www.test.com:21/file2?param1=1&param2=2 | ftp          | @www.test.com           |              | www.test.com |       21 |               21 | file2?param1=1&param2=2  | file2        | param1=1&param2=2 | 
+ https://user1:pwd1@www.test.com:443/          | https        | user1:pwd1@www.test.com | user1:pwd1   | www.test.com |      443 |              443 |                          |              |                   | 
+ https://user2@www.test.com:443/               | https        | user2@www.test.com      | user2        | www.test.com |      443 |              443 |                          |              |                   | 
+ ftp://www.test.com:21/file                    | ftp          | @www.test.com           |              | www.test.com |       21 |               21 | file                     | file         |                   | 
+ http://example.com:80/file3                   | http         | @example.com            |              | example.com  |       80 |               80 | file3                    | file3        |                   | 
+ ftp://example.com:21/dir1/file4?param3=3#ref1 | ftp          | @example.com            |              | example.com  |       21 |               21 | dir1/file4?param3=3#ref1 | dir1/file4   | param3=3          | ref1
+ http://example.com:80//dir2/file5#ref2        | http         | @example.com            |              | example.com  |       80 |               80 | /dir2/file5#ref2         | /dir2/file5  |                   | ref2
+ http://example.com:80/www.file6.be            | http         | @example.com            |              | example.com  |       80 |               80 | www.file6.be             | www.file6.be |                   | 
+(11 rows)
 
-select id, get_default_port(u) from test_url;
- id | get_default_port 
-----+------------------
-  1 |               80
-  2 |               80
-  3 |               80
-  4 |               21
-  5 |               80
-  6 |               21
-  7 |              443
-  8 |              443
-  9 |               80
- 10 |               80
-(10 rows)
-
-select id, u, get_file(u), get_path(u), get_query(u), get_ref(u) from test_url;
- id |                       u                       |         get_file         |   get_path   |     get_query     | get_ref 
-----+-----------------------------------------------+--------------------------+--------------+-------------------+---------
-  1 | http://www.test.com:80/file                   | file                     | file         |                   | 
-  2 | http://test.es:80/                            |                          |              |                   | 
-  3 | http://www.test.com:80/                       |                          |              |                   | 
-  4 | ftp://www.test.com:21/file2?param1=1&param2=2 | file2?param1=1&param2=2  | file2        | param1=1&param2=2 | 
-  5 | http://example.com:80/file3                   | file3                    | file3        |                   | 
-  6 | ftp://example.com:21/dir1/file4?param3=3#ref1 | dir1/file4?param3=3#ref1 | dir1/file4   | param3=3          | ref1
-  7 | https://user1:pwd1@www.test.com:443/          |                          |              |                   | 
-  8 | https://user2@www.test.com:443/               |                          |              |                   | 
-  9 | http://example.com:80//dir2/file5#ref2        | /dir2/file5#ref2         | /dir2/file5  |                   | ref2
- 10 | http://example.com:80/www.file6.be            | www.file6.be             | www.file6.be |                   | 
-(10 rows)
-
-select id, get_host(u) from test_url;
- id |   get_host   
-----+--------------
-  1 | www.test.com
-  2 | test.es
-  3 | www.test.com
-  4 | www.test.com
-  5 | example.com
-  6 | example.com
-  7 | www.test.com
-  8 | www.test.com
-  9 | example.com
- 10 | example.com
-(10 rows)
-
-select id, get_port(u) from test_url;
- id | get_port 
-----+----------
-  1 |       80
-  2 |       80
-  3 |       80
-  4 |       21
-  5 |       80
-  6 |       21
-  7 |      443
-  8 |      443
-  9 |       80
- 10 |       80
-(10 rows)
-
-select id, get_protocol(u) from test_url;
- id | get_protocol 
-----+--------------
-  1 | http
-  2 | http
-  3 | http
-  4 | ftp
-  5 | http
-  6 | ftp
-  7 | https
-  8 | https
-  9 | http
- 10 | http
-(10 rows)
-
-select id, get_userinfo(u) from test_url;
- id | get_userinfo 
-----+--------------
-  1 | 
-  2 | 
-  3 | 
-  4 | 
-  5 | 
-  6 | 
-  7 | user1:pwd1
-  8 | user2
-  9 | 
- 10 | 
-(10 rows)
-
+-- Test the comparison functions
 drop table if exists test_equals;
 DROP TABLE
-create table test_equals (id int, u1 pg_url, u2 pg_url);
+create table test_equals (u1 pg_url, u2 pg_url);
 CREATE TABLE
-insert into test_equals values (1, 'http://www.test.com:80/file', 'http://www.test.com:80/file');
+insert into test_equals values ('http://www.test.com:80/file', 'http://www.test.com:80/file');
 INSERT 0 1
-insert into test_equals values (2, 'http://www.test.com:80/file', 'https://www.test2.es:95/file');
+insert into test_equals values ('http://www.test.com:80/file', 'https://www.test2.es:95/file');
 INSERT 0 1
-insert into test_equals values (3, 'http://www.test.com:80/file2', 'http://www.test.com:80/file');
+insert into test_equals values ('http://www.test.com:80/file2', 'http://www.test.com:80/file');
 INSERT 0 1
 select * from test_equals;
- id |              u1              |              u2              
-----+------------------------------+------------------------------
-  1 | http://www.test.com:80/file  | http://www.test.com:80/file
-  2 | http://www.test.com:80/file  | https://www.test2.es:95/file
-  3 | http://www.test.com:80/file2 | http://www.test.com:80/file
+              u1              |              u2              
+------------------------------+------------------------------
+ http://www.test.com:80/file  | http://www.test.com:80/file
+ http://www.test.com:80/file  | https://www.test2.es:95/file
+ http://www.test.com:80/file2 | http://www.test.com:80/file
 (3 rows)
 
+-- equals
 select * from test_equals where pg_url_equals(u1, u2);
- id |             u1              |             u2              
-----+-----------------------------+-----------------------------
-  1 | http://www.test.com:80/file | http://www.test.com:80/file
+             u1              |             u2              
+-----------------------------+-----------------------------
+ http://www.test.com:80/file | http://www.test.com:80/file
 (1 row)
 
 select * from test_equals where not pg_url_equals(u1, u2);
- id |              u1              |              u2              
-----+------------------------------+------------------------------
-  2 | http://www.test.com:80/file  | https://www.test2.es:95/file
-  3 | http://www.test.com:80/file2 | http://www.test.com:80/file
+              u1              |              u2              
+------------------------------+------------------------------
+ http://www.test.com:80/file  | https://www.test2.es:95/file
+ http://www.test.com:80/file2 | http://www.test.com:80/file
 (2 rows)
 
-select * from test_equals where u1 = u2;
- id |              u1              |             u2              
-----+------------------------------+-----------------------------
-  1 | http://www.test.com:80/file  | http://www.test.com:80/file
-  3 | http://www.test.com:80/file2 | http://www.test.com:80/file
+-- same_host
+select * from test_equals where u1 = u2; -- same host
+              u1              |             u2              
+------------------------------+-----------------------------
+ http://www.test.com:80/file  | http://www.test.com:80/file
+ http://www.test.com:80/file2 | http://www.test.com:80/file
 (2 rows)
 
-select * from test_equals where same_host(u1,u2);
- id |              u1              |             u2              
-----+------------------------------+-----------------------------
-  1 | http://www.test.com:80/file  | http://www.test.com:80/file
-  3 | http://www.test.com:80/file2 | http://www.test.com:80/file
+select * from test_equals where same_host(u1,u2); -- same host
+              u1              |             u2              
+------------------------------+-----------------------------
+ http://www.test.com:80/file  | http://www.test.com:80/file
+ http://www.test.com:80/file2 | http://www.test.com:80/file
 (2 rows)
 
-select * from test_equals where same_file(u1,u2);
- id |             u1              |             u2              
-----+-----------------------------+-----------------------------
-  1 | http://www.test.com:80/file | http://www.test.com:80/file
+select * from test_equals where u1 <> u2; -- different host
+             u1              |              u2              
+-----------------------------+------------------------------
+ http://www.test.com:80/file | https://www.test2.es:95/file
 (1 row)
 
-select * from test_equals where u1 <> u2;
- id |             u1              |              u2              
-----+-----------------------------+------------------------------
-  2 | http://www.test.com:80/file | https://www.test2.es:95/file
+select * from test_equals where u1 < u2; -- less than host
+             u1              |              u2              
+-----------------------------+------------------------------
+ http://www.test.com:80/file | https://www.test2.es:95/file
 (1 row)
 
-select * from test_equals where u1 < u2;
- id |             u1              |              u2              
-----+-----------------------------+------------------------------
-  2 | http://www.test.com:80/file | https://www.test2.es:95/file
-(1 row)
-
-select * from test_equals where u1 <= u2;
- id |              u1              |              u2              
-----+------------------------------+------------------------------
-  1 | http://www.test.com:80/file  | http://www.test.com:80/file
-  2 | http://www.test.com:80/file  | https://www.test2.es:95/file
-  3 | http://www.test.com:80/file2 | http://www.test.com:80/file
+select * from test_equals where u1 <= u2; -- less than or equal host
+              u1              |              u2              
+------------------------------+------------------------------
+ http://www.test.com:80/file  | http://www.test.com:80/file
+ http://www.test.com:80/file  | https://www.test2.es:95/file
+ http://www.test.com:80/file2 | http://www.test.com:80/file
 (3 rows)
 
-select * from test_equals where u1 > u2;
- id | u1 | u2 
-----+----+----
+select * from test_equals where u1 > u2; -- greater than host
+ u1 | u2 
+----+----
 (0 rows)
 
-select * from test_equals where u1 >= u2;
- id |              u1              |             u2              
-----+------------------------------+-----------------------------
-  1 | http://www.test.com:80/file  | http://www.test.com:80/file
-  3 | http://www.test.com:80/file2 | http://www.test.com:80/file
+select * from test_equals where u1 >= u2; -- greater than or equal host
+              u1              |             u2              
+------------------------------+-----------------------------
+ http://www.test.com:80/file  | http://www.test.com:80/file
+ http://www.test.com:80/file2 | http://www.test.com:80/file
 (2 rows)
+
+-- same_file
+select * from test_equals where same_file(u1,u2);
+             u1              |             u2              
+-----------------------------+-----------------------------
+ http://www.test.com:80/file | http://www.test.com:80/file
+(1 row)
 
 create index test_url_u on test_url using btree (u);
 CREATE INDEX
 set enable_seqscan = off;
 SET
 explain select * from test_url where u = 'test.es';
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Index Scan using test_url_u on test_url  (cost=0.14..8.15 rows=1 width=36)
-   Index Cond: (u = 'http://test.es:80/'::pg_url)
-(2 rows)
-
-explain select * from test_url where same_host(u,'test.es');
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Index Scan using test_url_u on test_url  (cost=0.14..8.15 rows=1 width=36)
-   Index Cond: (u = 'http://test.es:80/'::pg_url)
-(2 rows)
-
-explain select same_host(u,'test.es') from test_url;
-                                    QUERY PLAN                                    
-----------------------------------------------------------------------------------
- Index Only Scan using test_url_u on test_url  (cost=0.14..12.31 rows=10 width=1)
-(1 row)
-
-explain select same_file(u,'test.es') from test_url;
-                                    QUERY PLAN                                    
-----------------------------------------------------------------------------------
- Index Only Scan using test_url_u on test_url  (cost=0.14..14.79 rows=10 width=1)
-(1 row)
-
-explain select pg_url_equals(u,'test.es') from test_url;
-                                    QUERY PLAN                                    
-----------------------------------------------------------------------------------
- Index Only Scan using test_url_u on test_url  (cost=0.14..14.79 rows=10 width=1)
-(1 row)
-
-set enable_seqscan = off;
-SET
-explain select * from test_url where u = 'test.es';
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Index Scan using test_url_u on test_url  (cost=0.14..8.15 rows=1 width=36)
-   Index Cond: (u = 'http://test.es:80/'::pg_url)
-(2 rows)
-
-explain select * from test_url where same_host(u,'test.es');
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Index Scan using test_url_u on test_url  (cost=0.14..8.15 rows=1 width=36)
-   Index Cond: (u = 'http://test.es:80/'::pg_url)
-(2 rows)
-
-explain select same_host(u,'test.es') from test_url;
-                                    QUERY PLAN                                    
-----------------------------------------------------------------------------------
- Index Only Scan using test_url_u on test_url  (cost=0.14..12.31 rows=10 width=1)
-(1 row)
-
-explain select same_file(u,'test.es') from test_url;
-                                    QUERY PLAN                                    
-----------------------------------------------------------------------------------
- Index Only Scan using test_url_u on test_url  (cost=0.14..14.79 rows=10 width=1)
-(1 row)
-
-explain select pg_url_equals(u,'test.es') from test_url;
-                                    QUERY PLAN                                    
-----------------------------------------------------------------------------------
- Index Only Scan using test_url_u on test_url  (cost=0.14..14.79 rows=10 width=1)
-(1 row)
-
-set enable_seqscan = off;
-SET
-explain select * from test_url where u = 'test.es';
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Index Scan using test_url_u on test_url  (cost=0.14..8.15 rows=1 width=36)
+                                   QUERY PLAN                                    
+---------------------------------------------------------------------------------
+ Index Only Scan using test_url_u on test_url  (cost=0.14..8.15 rows=1 width=32)
    Index Cond: (u = 'http://test.es:80/'::pg_url)
 (2 rows)
 
 explain select * from test_url where same_host(u,'www.test.com');
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Index Scan using test_url_u on test_url  (cost=0.14..8.15 rows=1 width=36)
+                                   QUERY PLAN                                    
+---------------------------------------------------------------------------------
+ Index Only Scan using test_url_u on test_url  (cost=0.14..8.15 rows=1 width=32)
    Index Cond: (u = 'http://www.test.com:80/'::pg_url)
 (2 rows)
 
 explain select * from test_url where same_file(u,'www.test.com/file');
-                                  QUERY PLAN                                   
--------------------------------------------------------------------------------
- Seq Scan on test_url  (cost=10000000000.00..10000000003.60 rows=3 width=36)
+                                    QUERY PLAN                                    
+----------------------------------------------------------------------------------
+ Index Only Scan using test_url_u on test_url  (cost=0.14..15.05 rows=4 width=32)
    Filter: same_file(u, 'http://www.test.com:80/file'::pg_url)
- JIT:
-   Functions: 2
-   Options: Inlining true, Optimization true, Expressions true, Deforming true
-(5 rows)
+(2 rows)
 
 explain select * from test_url where pg_url_equals(u,'http://www.test.com/file');
-                                  QUERY PLAN                                   
--------------------------------------------------------------------------------
- Seq Scan on test_url  (cost=10000000000.00..10000000003.60 rows=3 width=36)
+                                    QUERY PLAN                                    
+----------------------------------------------------------------------------------
+ Index Only Scan using test_url_u on test_url  (cost=0.14..15.05 rows=4 width=32)
    Filter: pg_url_equals(u, 'http://www.test.com:80/file'::pg_url)
- JIT:
-   Functions: 2
-   Options: Inlining true, Optimization true, Expressions true, Deforming true
-(5 rows)
+(2 rows)
 
 select * from test_url where same_host(u,'www.test.com');
- id |                       u                       
-----+-----------------------------------------------
-  1 | http://www.test.com:80/file
-  3 | http://www.test.com:80/
-  4 | ftp://www.test.com:21/file2?param1=1&param2=2
-  7 | https://user1:pwd1@www.test.com:443/
-  8 | https://user2@www.test.com:443/
-(5 rows)
+                       u                       
+-----------------------------------------------
+ http://www.test.com:80/file
+ http://www.test.com:80/
+ ftp://www.test.com:21/file2?param1=1&param2=2
+ https://user1:pwd1@www.test.com:443/
+ https://user2@www.test.com:443/
+ ftp://www.test.com:21/file
+(6 rows)
 
 select * from test_url where same_file(u,'www.test.com/file');
- id |              u              
-----+-----------------------------
-  1 | http://www.test.com:80/file
-(1 row)
+              u              
+-----------------------------
+ http://www.test.com:80/file
+ ftp://www.test.com:21/file
+(2 rows)
 
 select * from test_url where pg_url_equals(u,'http://www.test.com/file');
- id |              u              
-----+-----------------------------
-  1 | http://www.test.com:80/file
+              u              
+-----------------------------
+ http://www.test.com:80/file
 (1 row)
 
 set enable_seqscan = on;
 SET
 select * from test_url where same_host(u,'www.test.com');
- id |                       u                       
-----+-----------------------------------------------
-  1 | http://www.test.com:80/file
-  3 | http://www.test.com:80/
-  4 | ftp://www.test.com:21/file2?param1=1&param2=2
-  7 | https://user1:pwd1@www.test.com:443/
-  8 | https://user2@www.test.com:443/
-(5 rows)
+                       u                       
+-----------------------------------------------
+ http://www.test.com:80/file
+ http://www.test.com:80/
+ ftp://www.test.com:21/file2?param1=1&param2=2
+ https://user1:pwd1@www.test.com:443/
+ https://user2@www.test.com:443/
+ ftp://www.test.com:21/file
+(6 rows)
 
 select * from test_url where same_file(u,'www.test.com/file');
- id |              u              
-----+-----------------------------
-  1 | http://www.test.com:80/file
-(1 row)
+              u              
+-----------------------------
+ http://www.test.com:80/file
+ ftp://www.test.com:21/file
+(2 rows)
 
 select * from test_url where pg_url_equals(u,'http://www.test.com/file');
- id |              u              
-----+-----------------------------
-  1 | http://www.test.com:80/file
+              u              
+-----------------------------
+ http://www.test.com:80/file
 (1 row)
 

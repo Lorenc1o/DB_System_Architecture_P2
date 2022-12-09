@@ -557,7 +557,6 @@ Datum get_authority(PG_FUNCTION_ARGS)
   // Get the sizes
   int prot_size = url->protocol_len;
   int host_size = url->host_len;
-  int user_len = url->user_len;
   int file_size = url->file_len;
 
   // Get host and userinfo
@@ -862,8 +861,8 @@ Datum same_file(PG_FUNCTION_ARGS)
  * @note same_file implies same_host
  * @note This function is a base function for BTree construction
  */
-PG_FUNCTION_INFO_V1(same_host);
-Datum same_host(PG_FUNCTION_ARGS)
+PG_FUNCTION_INFO_V1(same_host_internal);
+Datum same_host_internal(PG_FUNCTION_ARGS)
 {
   // Get value for url1
   struct varlena *url_buf1 = (struct varlena *)PG_GETARG_VARLENA_P(0);
@@ -878,8 +877,8 @@ Datum same_host(PG_FUNCTION_ARGS)
   // If the components match, compare their host part
   if (result)
   {
-    char *host1 = url1->data + url1->protocol_len;
-    char *host2 = url2->data + url2->protocol_len;
+    char *host1 = internal_get_host(url1);
+    char *host2 = internal_get_host(url2);
     result = strcmp(host1, host2) == 0; // if strings are equal
   }
   // If the lengths are not the same, the urls are not equal
